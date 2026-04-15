@@ -117,7 +117,32 @@ success "AWS CLI $(aws --version 2>&1 | head -1)"
 # AWS credentials
 ACCOUNT_ID=$(aws sts get-caller-identity $AWS_ARGS --query Account --output text 2>/dev/null) \
   || fail "AWS credentials not configured. Run: aws configure"
-REGION=$(aws configure get region $AWS_ARGS 2>/dev/null || echo "${AWS_REGION:-us-east-1}")
+
+# Region detection: CLI arg > aws configure > AWS_REGION env > AWS_DEFAULT_REGION env > CloudShell metadata > fallback
+REGION=""
+if [ -n "$AWS_REGION" ]; then
+  REGION="$AWS_REGION"
+elif [ -n "$AWS_DEFAULT_REGION" ]; then
+  REGION="$AWS_DEFAULT_REGION"
+else
+  REGION=$(aws configure get region $AWS_ARGS 2>/dev/null || true)
+fi
+
+if [ -z "$REGION" ]; then
+  # CloudShell sets AWS_REGION automatically, but just in case:
+  REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region 2>/dev/null || true)
+fi
+
+if [ -z "$REGION" ]; then
+  REGION="ap-southeast-1"
+  warn "Could not detect region. Using default: $REGION"
+  warn "To specify a region, use: ./deploy.sh --region ap-southeast-1 --admin-email ..."
+fi
+
+export AWS_DEFAULT_REGION="$REGION"
+export CDK_DEFAULT_REGION="$REGION"
+export CDK_DEFAULT_ACCOUNT="$ACCOUNT_ID"
+
 success "AWS Account: $ACCOUNT_ID, Region: $REGION"
 
 # Node.js
