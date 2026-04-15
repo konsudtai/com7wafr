@@ -1,0 +1,210 @@
+<mxfile host="app.diagrams.net" modified="2024-12-15T00:00:00.000Z" agent="WA Review Tool" version="24.0.0" type="device">
+  <diagram id="arch" name="Architecture">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- ===== SWIMLANES ===== -->
+
+        <!-- Swimlane: Users -->
+        <mxCell id="lane-users" value="Users" style="shape=swimlane;startSize=30;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;fontSize=14;horizontal=1;swimlaneLine=1;rounded=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="20" y="20" width="180" height="840" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="user-admin" value="Admin&#xa;(Full Access)" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.user;labelBackgroundColor=none;sketch=0;fontStyle=1;fontSize=11;" vertex="1" parent="lane-users">
+          <mxGeometry x="40" y="60" width="60" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="user-viewer" value="Viewer&#xa;(Read Only)" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.user;labelBackgroundColor=none;sketch=0;fontStyle=0;fontSize=11;" vertex="1" parent="lane-users">
+          <mxGeometry x="40" y="160" width="60" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="user-browser" value="Browser + MFA&#xa;(TOTP Authenticator)" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;fontSize=10;fontColor=#666666;" vertex="1" parent="lane-users">
+          <mxGeometry x="15" y="260" width="130" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Swimlane: Frontend (CloudFront + S3) -->
+        <mxCell id="lane-frontend" value="Frontend Layer" style="shape=swimlane;startSize=30;fillColor=#E8F5E8;strokeColor=#3F8624;fontStyle=1;fontSize=14;horizontal=1;swimlaneLine=1;rounded=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="220" y="20" width="200" height="840" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="cloudfront" value="Amazon&#xa;CloudFront" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=1;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudfront;" vertex="1" parent="lane-frontend">
+          <mxGeometry x="60" y="60" width="60" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="s3" value="Amazon S3&#xa;(Dashboard Files)" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#3F8624;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=1;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;" vertex="1" parent="lane-frontend">
+          <mxGeometry x="60" y="200" width="60" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="cf-s3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#3F8624;strokeWidth=2;" edge="1" source="cloudfront" target="s3" parent="lane-frontend">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="dashboard-label" value="Vanilla HTML/CSS/JS&#xa;Chart.js + Cognito SDK&#xa;No build tools" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;fontSize=9;fontColor=#3F8624;fontStyle=2;" vertex="1" parent="lane-frontend">
+          <mxGeometry x="30" y="310" width="120" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Swimlane: Auth (Cognito) -->
+        <mxCell id="lane-auth" value="Auth Layer" style="shape=swimlane;startSize=30;fillColor=#FDE8E8;strokeColor=#DD344C;fontStyle=1;fontSize=14;horizontal=1;swimlaneLine=1;rounded=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="440" y="20" width="200" height="840" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="cognito" value="Amazon&#xa;Cognito" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#DD344C;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=1;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cognito;" vertex="1" parent="lane-auth">
+          <mxGeometry x="60" y="60" width="60" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="cognito-details" value="User Pool&#xa;MFA Required (TOTP)&#xa;custom:role (Admin/Viewer)&#xa;No self-signup&#xa;JWT ID + Access + Refresh" style="text;html=1;align=left;verticalAlign=top;resizable=0;points=[];autosize=1;fontSize=9;fontColor=#DD344C;" vertex="1" parent="lane-auth">
+          <mxGeometry x="20" y="170" width="150" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- Swimlane: API (API Gateway + Lambda) -->
+        <mxCell id="lane-api" value="API Layer" style="shape=swimlane;startSize=30;fillColor=#F3EAFF;strokeColor=#8C4FFF;fontStyle=1;fontSize=14;horizontal=1;swimlaneLine=1;rounded=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="660" y="20" width="240" height="840" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="apigw" value="Amazon&#xa;API Gateway" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=1;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.api_gateway;" vertex="1" parent="lane-api">
+          <mxGeometry x="80" y="60" width="60" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="lambda-scan" value="Lambda&#xa;scan-handler" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#ED7100;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;" vertex="1" parent="lane-api">
+          <mxGeometry x="20" y="220" width="50" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="lambda-account" value="Lambda&#xa;account-handler" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#ED7100;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;" vertex="1" parent="lane-api">
+          <mxGeometry x="90" y="220" width="50" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="lambda-team" value="Lambda&#xa;team-handler" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#ED7100;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;" vertex="1" parent="lane-api">
+          <mxGeometry x="160" y="220" width="50" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="apigw-scan" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#ED7100;strokeWidth=1.5;" edge="1" source="apigw" target="lambda-scan" parent="lane-api">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="apigw-account" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#ED7100;strokeWidth=1.5;" edge="1" source="apigw" target="lambda-account" parent="lane-api">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="apigw-team" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#ED7100;strokeWidth=1.5;" edge="1" source="apigw" target="lambda-team" parent="lane-api">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="api-label" value="REST API&#xa;Cognito Authorizer&#xa;CORS enabled" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;fontSize=9;fontColor=#8C4FFF;fontStyle=2;" vertex="1" parent="lane-api">
+          <mxGeometry x="55" y="150" width="100" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="core-engine" value="Core Engine (Python)&#xa;━━━━━━━━━━━━━━━━━━&#xa;Scanner (asyncio + ThreadPool)&#xa;Rule Engine (29 checks)&#xa;Report Generator (HTML/JSON)&#xa;WA Integration" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8F0;strokeColor=#ED7100;strokeWidth=1.5;dashed=1;dashPattern=8 4;fontSize=10;fontColor=#232F3E;align=center;verticalAlign=middle;" vertex="1" parent="lane-api">
+          <mxGeometry x="15" y="380" width="200" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- Swimlane: Data (DynamoDB) -->
+        <mxCell id="lane-data" value="Data Layer" style="shape=swimlane;startSize=30;fillColor=#E8EAFD;strokeColor=#3334B9;fontStyle=1;fontSize=14;horizontal=1;swimlaneLine=1;rounded=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="920" y="20" width="200" height="840" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="dynamodb" value="Amazon&#xa;DynamoDB" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#C925D1;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=1;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.dynamodb;" vertex="1" parent="lane-data">
+          <mxGeometry x="60" y="60" width="60" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="ddb-details" value="Single-Table Design&#xa;━━━━━━━━━━━━━━━━━━&#xa;PK/SK + GSI1&#xa;PAY_PER_REQUEST&#xa;TTL for auto-cleanup&#xa;━━━━━━━━━━━━━━━━━━&#xa;SCAN#{id} | META&#xa;SCAN#{id} | FINDING#{id}&#xa;ACCOUNT#{id} | META&#xa;HISTORY | SCAN#{ts}" style="text;html=1;align=left;verticalAlign=top;resizable=0;points=[];autosize=1;fontSize=9;fontColor=#3334B9;whiteSpace=wrap;" vertex="1" parent="lane-data">
+          <mxGeometry x="15" y="170" width="160" height="150" as="geometry"/>
+        </mxCell>
+
+        <!-- Swimlane: Target Accounts -->
+        <mxCell id="lane-targets" value="Target Accounts" style="shape=swimlane;startSize=30;fillColor=#F5F5F5;strokeColor=#82B366;fontStyle=1;fontSize=14;horizontal=1;swimlaneLine=1;rounded=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="20" width="240" height="840" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="sts" value="AWS STS&#xa;AssumeRole" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#DD344C;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=1;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.sts;" vertex="1" parent="lane-targets">
+          <mxGeometry x="80" y="60" width="60" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="target-a" value="Account A (Production)&#xa;IAM Role: WAReviewReadOnly&#xa;ReadOnlyAccess + SecurityAudit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82B366;strokeWidth=1.5;fontSize=9;fontColor=#232F3E;align=center;verticalAlign=middle;" vertex="1" parent="lane-targets">
+          <mxGeometry x="20" y="200" width="190" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="target-b" value="Account B (Staging)&#xa;IAM Role: WAReviewReadOnly&#xa;ReadOnlyAccess + SecurityAudit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82B366;strokeWidth=1.5;fontSize=9;fontColor=#232F3E;align=center;verticalAlign=middle;" vertex="1" parent="lane-targets">
+          <mxGeometry x="20" y="290" width="190" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="target-c" value="Account C (Development)&#xa;IAM Role: WAReviewReadOnly&#xa;ReadOnlyAccess + SecurityAudit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82B366;strokeWidth=1.5;fontSize=9;fontColor=#232F3E;align=center;verticalAlign=middle;" vertex="1" parent="lane-targets">
+          <mxGeometry x="20" y="380" width="190" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="sts-a" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#DD344C;strokeWidth=1.5;" edge="1" source="sts" target="target-a" parent="lane-targets">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="sts-b" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#DD344C;strokeWidth=1.5;dashed=1;" edge="1" source="sts" target="target-b" parent="lane-targets">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="sts-c" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#DD344C;strokeWidth=1.5;dashed=1;" edge="1" source="sts" target="target-c" parent="lane-targets">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="services-scanned" value="Services Scanned:&#xa;EC2, S3, RDS, IAM, Lambda&#xa;DynamoDB, ELB, CloudFront&#xa;ECS, EKS&#xa;(29 checks total)" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;fontSize=9;fontColor=#82B366;fontStyle=2;" vertex="1" parent="lane-targets">
+          <mxGeometry x="30" y="480" width="150" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="ext-id-note" value="Trust Policy:&#xa;ExternalId = wa-review-{accountId}&#xa;(Confused Deputy Protection)" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;fontSize=8;fontColor=#999999;fontStyle=2;" vertex="1" parent="lane-targets">
+          <mxGeometry x="25" y="580" width="170" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== CROSS-LANE EDGES ===== -->
+
+        <!-- Users -> CloudFront -->
+        <mxCell id="e-user-cf" value="HTTPS" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#232F3E;strokeWidth=2;fontSize=10;fontStyle=1;" edge="1" source="user-admin" target="cloudfront" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- CloudFront -> API GW -->
+        <mxCell id="e-cf-apigw" value="REST API" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#8C4FFF;strokeWidth=2;fontSize=9;" edge="1" source="cloudfront" target="apigw" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- API GW -> Cognito (JWT validate) -->
+        <mxCell id="e-apigw-cognito" value="JWT&#xa;Validate" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#DD344C;strokeWidth=1.5;dashed=1;dashPattern=8 4;fontSize=9;" edge="1" source="apigw" target="cognito" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Lambda -> DynamoDB -->
+        <mxCell id="e-lambda-ddb" value="Read/Write" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#3334B9;strokeWidth=1.5;fontSize=9;" edge="1" source="lambda-scan" target="dynamodb" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Lambda -> STS -->
+        <mxCell id="e-lambda-sts" value="AssumeRole" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#DD344C;strokeWidth=2;fontSize=9;fontStyle=1;" edge="1" source="lambda-scan" target="sts" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Team handler -> Cognito -->
+        <mxCell id="e-team-cognito" value="Manage&#xa;Users" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#DD344C;strokeWidth=1.5;fontSize=8;" edge="1" source="lambda-team" target="cognito" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== PILLAR BAR (bottom) ===== -->
+        <mxCell id="pillar-bar" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#232F3E;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="20" y="880" width="1360" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="pillar-title" value="AWS Well-Architected Framework — 5 Pillars" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;fontSize=12;fontStyle=1;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="500" y="882" width="280" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="p-sec" value="Security" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DD344C;strokeColor=none;fontColor=#FFFFFF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="912" width="240" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="p-rel" value="Reliability" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3334B9;strokeColor=none;fontColor=#FFFFFF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="295" y="912" width="240" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="p-ops" value="Operational Excellence" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3F8624;strokeColor=none;fontColor=#FFFFFF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="550" y="912" width="240" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="p-perf" value="Performance Efficiency" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#8C4FFF;strokeColor=none;fontColor=#FFFFFF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="805" y="912" width="240" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="p-cost" value="Cost Optimization" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ED7100;strokeColor=none;fontColor=#FFFFFF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="912" width="240" height="28" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,24 @@
+checks:
+  - check_id: cloudfront-001
+    service: cloudfront
+    description: CloudFront distribution is not enforcing HTTPS for viewer connections
+    pillar: security
+    severity: HIGH
+    evaluation_logic_ref: "checks.cloudfront:check_https_enforced"
+    remediation_guidance: >
+      Update the CloudFront distribution's default cache behavior to set
+      the viewer protocol policy to 'redirect-to-https' or 'https-only'.
+      This ensures all viewer connections use encrypted HTTPS.
+    documentation_url: https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-https-viewers-to-cloudfront.html
+
+  - check_id: cloudfront-002
+    service: cloudfront
+    description: CloudFront distribution does not have AWS WAF associated
+    pillar: security
+    severity: MEDIUM
+    evaluation_logic_ref: "checks.cloudfront:check_waf_associated"
+    remediation_guidance: >
+      Associate an AWS WAF web ACL with the CloudFront distribution to
+      protect against common web exploits and bots. Create a web ACL
+      with appropriate rules and attach it to the distribution.
+    documentation_url: https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-web-awswaf.html

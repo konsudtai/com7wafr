@@ -1,0 +1,58 @@
+checks:
+  - check_id: ec2-001
+    service: ec2
+    description: EC2 instance has a public IP with unrestricted SSH access (0.0.0.0/0 on port 22)
+    pillar: security
+    severity: CRITICAL
+    evaluation_logic_ref: "checks.ec2:check_unrestricted_ssh"
+    remediation_guidance: >
+      Restrict SSH access by updating the security group to allow inbound traffic
+      on port 22 only from trusted IP ranges. Remove any rules that allow 0.0.0.0/0.
+    documentation_url: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/security-group-rules.html
+
+  - check_id: ec2-002
+    service: ec2
+    description: EC2 instance EBS volumes are not encrypted at rest
+    pillar: security
+    severity: HIGH
+    evaluation_logic_ref: "checks.ec2:check_ebs_encryption"
+    remediation_guidance: >
+      Enable EBS encryption by default in the account settings, or create new
+      encrypted volumes and migrate data from unencrypted volumes.
+    documentation_url: https://docs.aws.amazon.com/ebs/latest/userguide/ebs-encryption.html
+
+  - check_id: ec2-003
+    service: ec2
+    description: EC2 instance does not have detailed monitoring enabled
+    pillar: operational_excellence
+    severity: MEDIUM
+    evaluation_logic_ref: "checks.ec2:check_detailed_monitoring"
+    remediation_guidance: >
+      Enable detailed monitoring for the instance to get metrics at 1-minute
+      intervals instead of 5-minute intervals. Use the AWS Console or CLI
+      to enable detailed monitoring.
+    documentation_url: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-cloudwatch-new.html
+
+  - check_id: ec2-004
+    service: ec2
+    description: EC2 instance appears underutilized (instance type may be oversized for workload)
+    pillar: cost_optimization
+    severity: LOW
+    evaluation_logic_ref: "checks.ec2:check_underutilized_instance"
+    remediation_guidance: >
+      Review CloudWatch CPU utilization metrics. If average CPU usage is
+      consistently below 10%, consider rightsizing to a smaller instance type
+      to reduce costs.
+    documentation_url: https://docs.aws.amazon.com/cost-management/latest/userguide/ce-rightsizing.html
+
+  - check_id: ec2-005
+    service: ec2
+    description: EC2 instance is not part of an Auto Scaling group or backup plan
+    pillar: reliability
+    severity: HIGH
+    evaluation_logic_ref: "checks.ec2:check_backup_configured"
+    remediation_guidance: >
+      Configure AWS Backup or add the instance to an Auto Scaling group to
+      ensure recovery in case of failure. Create automated EBS snapshots
+      using AWS Backup plans.
+    documentation_url: https://docs.aws.amazon.com/aws-backup/latest/devguide/whatisbackup.html

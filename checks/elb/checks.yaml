@@ -1,0 +1,24 @@
+checks:
+  - check_id: elb-001
+    service: elb
+    description: Elastic Load Balancer does not have access logging enabled
+    pillar: security
+    severity: HIGH
+    evaluation_logic_ref: "checks.elb:check_access_logging_enabled"
+    remediation_guidance: >
+      Enable access logging on the load balancer to capture detailed
+      information about requests. Configure an S3 bucket to store the
+      access logs for security analysis and troubleshooting.
+    documentation_url: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/enable-access-logging.html
+
+  - check_id: elb-002
+    service: elb
+    description: Elastic Load Balancer does not have an HTTPS listener configured
+    pillar: security
+    severity: HIGH
+    evaluation_logic_ref: "checks.elb:check_https_listener"
+    remediation_guidance: >
+      Add an HTTPS listener (port 443) to the load balancer with a valid
+      SSL/TLS certificate from AWS Certificate Manager. Redirect HTTP
+      traffic to HTTPS to encrypt data in transit.
+    documentation_url: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/create-https-listener.html

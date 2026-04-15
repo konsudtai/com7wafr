@@ -1,0 +1,24 @@
+checks:
+  - check_id: ecs-001
+    service: ecs
+    description: ECS service does not have deployment circuit breaker enabled
+    pillar: reliability
+    severity: MEDIUM
+    evaluation_logic_ref: "checks.ecs:check_circuit_breaker_enabled"
+    remediation_guidance: >
+      Enable the deployment circuit breaker on the ECS service to
+      automatically roll back failed deployments. Update the service's
+      deployment configuration to enable the circuit breaker with rollback.
+    documentation_url: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-circuit-breaker.html
+
+  - check_id: ecs-002
+    service: ecs
+    description: ECS cluster does not have Container Insights enabled
+    pillar: operational_excellence
+    severity: LOW
+    evaluation_logic_ref: "checks.ecs:check_container_insights_enabled"
+    remediation_guidance: >
+      Enable Container Insights on the ECS cluster to collect, aggregate,
+      and summarize metrics and logs. This provides detailed monitoring
+      of container-level resource utilization and performance.
+    documentation_url: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/deploy-container-insights-ECS.html

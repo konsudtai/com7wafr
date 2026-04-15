@@ -1,0 +1,186 @@
+<mxfile host="app.diagrams.net" modified="2024-12-15T00:00:00.000Z" agent="WA Review Tool" version="24.0.0" type="device">
+  <diagram id="dataflow" name="Data Flow">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- ===== SWIMLANES ===== -->
+
+        <!-- Swimlane: User / Browser -->
+        <mxCell id="lane-user" value="User / Browser" style="shape=swimlane;startSize=30;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;fontSize=13;horizontal=1;swimlaneLine=1;rounded=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="20" y="20" width="1360" height="140" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="u-login" value="1. Login&#xa;(email + password)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDE8E8;strokeColor=#DD344C;fontSize=10;fontStyle=1;" vertex="1" parent="lane-user">
+          <mxGeometry x="30" y="50" width="130" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="u-mfa" value="2. MFA&#xa;(TOTP code)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDE8E8;strokeColor=#DD344C;fontSize=10;fontStyle=1;" vertex="1" parent="lane-user">
+          <mxGeometry x="190" y="50" width="110" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="u-dashboard" value="3. View&#xa;Dashboard" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E8;strokeColor=#3F8624;fontSize=10;fontStyle=1;" vertex="1" parent="lane-user">
+          <mxGeometry x="330" y="50" width="110" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="u-scan" value="4. Click&#xa;Run Check" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8F0;strokeColor=#ED7100;fontSize=10;fontStyle=1;" vertex="1" parent="lane-user">
+          <mxGeometry x="470" y="50" width="110" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="u-poll" value="5. Poll&#xa;Progress" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3EAFF;strokeColor=#8C4FFF;fontSize=10;fontStyle=1;" vertex="1" parent="lane-user">
+          <mxGeometry x="610" y="50" width="110" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="u-results" value="6. View&#xa;Results" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E8;strokeColor=#3F8624;fontSize=10;fontStyle=1;" vertex="1" parent="lane-user">
+          <mxGeometry x="750" y="50" width="110" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="u-report" value="7. Export&#xa;PDF Report" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8EAFD;strokeColor=#3334B9;fontSize=10;fontStyle=1;" vertex="1" parent="lane-user">
+          <mxGeometry x="890" y="50" width="110" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="u-cost" value="8. View Cost&#xa;Advisor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8F0;strokeColor=#ED7100;fontSize=10;fontStyle=1;" vertex="1" parent="lane-user">
+          <mxGeometry x="1030" y="50" width="110" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="u-team" value="9. Manage&#xa;Team" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDE8E8;strokeColor=#DD344C;fontSize=10;fontStyle=1;" vertex="1" parent="lane-user">
+          <mxGeometry x="1170" y="50" width="110" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrows between user steps -->
+        <mxCell id="eu1" style="rounded=1;strokeColor=#999;strokeWidth=1;" edge="1" source="u-login" target="u-mfa" parent="lane-user"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eu2" style="rounded=1;strokeColor=#999;strokeWidth=1;" edge="1" source="u-mfa" target="u-dashboard" parent="lane-user"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eu3" style="rounded=1;strokeColor=#999;strokeWidth=1;" edge="1" source="u-dashboard" target="u-scan" parent="lane-user"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eu4" style="rounded=1;strokeColor=#999;strokeWidth=1;" edge="1" source="u-scan" target="u-poll" parent="lane-user"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eu5" style="rounded=1;strokeColor=#999;strokeWidth=1;" edge="1" source="u-poll" target="u-results" parent="lane-user"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Swimlane: CloudFront + S3 -->
+        <mxCell id="lane-cf" value="CloudFront + S3" style="shape=swimlane;startSize=30;fillColor=#E8F5E8;strokeColor=#3F8624;fontStyle=1;fontSize=13;horizontal=1;swimlaneLine=1;rounded=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="20" y="180" width="1360" height="120" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="cf-serve" value="Serve static&#xa;HTML/CSS/JS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3F8624;fontSize=10;" vertex="1" parent="lane-cf">
+          <mxGeometry x="330" y="40" width="110" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="cf-proxy" value="Proxy API&#xa;requests" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#8C4FFF;fontSize=10;" vertex="1" parent="lane-cf">
+          <mxGeometry x="470" y="40" width="110" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="cf-pdf" value="Client-side&#xa;PDF generation&#xa;(html2pdf.js)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3334B9;fontSize=9;" vertex="1" parent="lane-cf">
+          <mxGeometry x="890" y="40" width="110" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Swimlane: Cognito -->
+        <mxCell id="lane-cognito" value="Amazon Cognito" style="shape=swimlane;startSize=30;fillColor=#FDE8E8;strokeColor=#DD344C;fontStyle=1;fontSize=13;horizontal=1;swimlaneLine=1;rounded=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="20" y="320" width="1360" height="120" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="cog-auth" value="Authenticate&#xa;USER_PASSWORD_AUTH" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DD344C;fontSize=9;" vertex="1" parent="lane-cognito">
+          <mxGeometry x="30" y="40" width="130" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="cog-mfa" value="Verify TOTP&#xa;SOFTWARE_TOKEN_MFA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DD344C;fontSize=9;" vertex="1" parent="lane-cognito">
+          <mxGeometry x="190" y="40" width="130" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="cog-jwt" value="Issue JWT&#xa;(ID + Access + Refresh)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DD344C;fontSize=9;" vertex="1" parent="lane-cognito">
+          <mxGeometry x="350" y="40" width="130" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="cog-validate" value="Validate JWT&#xa;(API Gateway&#xa;Authorizer)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DD344C;fontSize=9;" vertex="1" parent="lane-cognito">
+          <mxGeometry x="510" y="40" width="110" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="cog-team" value="AdminCreateUser&#xa;AdminDeleteUser&#xa;AdminUpdateAttrs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DD344C;fontSize=8;" vertex="1" parent="lane-cognito">
+          <mxGeometry x="1170" y="40" width="120" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="ecog1" style="rounded=1;strokeColor=#DD344C;strokeWidth=1;" edge="1" source="cog-auth" target="cog-mfa" parent="lane-cognito"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ecog2" style="rounded=1;strokeColor=#DD344C;strokeWidth=1;" edge="1" source="cog-mfa" target="cog-jwt" parent="lane-cognito"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Swimlane: API Gateway -->
+        <mxCell id="lane-apigw" value="API Gateway" style="shape=swimlane;startSize=30;fillColor=#F3EAFF;strokeColor=#8C4FFF;fontStyle=1;fontSize=13;horizontal=1;swimlaneLine=1;rounded=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="20" y="460" width="1360" height="100" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="gw-route" value="Route request&#xa;by method + path" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#8C4FFF;fontSize=10;" vertex="1" parent="lane-apigw">
+          <mxGeometry x="510" y="35" width="130" height="45" as="geometry"/>
+        </mxCell>
+
+        <!-- Swimlane: Lambda -->
+        <mxCell id="lane-lambda" value="Lambda Functions" style="shape=swimlane;startSize=30;fillColor=#FFF8F0;strokeColor=#ED7100;fontStyle=1;fontSize=13;horizontal=1;swimlaneLine=1;rounded=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="20" y="580" width="1360" height="160" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="lm-create-scan" value="Create scan job&#xa;status=PENDING" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#ED7100;fontSize=9;" vertex="1" parent="lane-lambda">
+          <mxGeometry x="30" y="50" width="120" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="lm-assume" value="STS AssumeRole&#xa;per account" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DD344C;fontSize=9;" vertex="1" parent="lane-lambda">
+          <mxGeometry x="180" y="50" width="120" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="lm-scan" value="Scan resources&#xa;(concurrent&#xa;asyncio)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#ED7100;fontSize=9;" vertex="1" parent="lane-lambda">
+          <mxGeometry x="330" y="50" width="120" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="lm-evaluate" value="Rule Engine&#xa;evaluate&#xa;(29 checks)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#ED7100;fontSize=9;" vertex="1" parent="lane-lambda">
+          <mxGeometry x="480" y="50" width="120" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="lm-findings" value="Generate&#xa;findings" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#ED7100;fontSize=9;" vertex="1" parent="lane-lambda">
+          <mxGeometry x="630" y="50" width="100" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="lm-store" value="Store results&#xa;in DynamoDB" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3334B9;fontSize=9;" vertex="1" parent="lane-lambda">
+          <mxGeometry x="760" y="50" width="110" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="lm-complete" value="Update status&#xa;COMPLETED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3F8624;fontSize=9;" vertex="1" parent="lane-lambda">
+          <mxGeometry x="900" y="50" width="110" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="lm-cost" value="Cost Explorer&#xa;RI/SP/Hub&#xa;recommendations" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#ED7100;fontSize=8;" vertex="1" parent="lane-lambda">
+          <mxGeometry x="1040" y="50" width="110" height="45" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="elm1" style="rounded=1;strokeColor=#ED7100;strokeWidth=1.5;" edge="1" source="lm-create-scan" target="lm-assume" parent="lane-lambda"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="elm2" style="rounded=1;strokeColor=#ED7100;strokeWidth=1.5;" edge="1" source="lm-assume" target="lm-scan" parent="lane-lambda"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="elm3" style="rounded=1;strokeColor=#ED7100;strokeWidth=1.5;" edge="1" source="lm-scan" target="lm-evaluate" parent="lane-lambda"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="elm4" style="rounded=1;strokeColor=#ED7100;strokeWidth=1.5;" edge="1" source="lm-evaluate" target="lm-findings" parent="lane-lambda"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="elm5" style="rounded=1;strokeColor=#ED7100;strokeWidth=1.5;" edge="1" source="lm-findings" target="lm-store" parent="lane-lambda"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="elm6" style="rounded=1;strokeColor=#ED7100;strokeWidth=1.5;" edge="1" source="lm-store" target="lm-complete" parent="lane-lambda"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Swimlane: DynamoDB -->
+        <mxCell id="lane-ddb" value="DynamoDB" style="shape=swimlane;startSize=30;fillColor=#E8EAFD;strokeColor=#3334B9;fontStyle=1;fontSize=13;horizontal=1;swimlaneLine=1;rounded=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="20" y="760" width="1360" height="120" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="ddb-scan-meta" value="SCAN#{id}|META&#xa;status, progress,&#xa;timestamps" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3334B9;fontSize=9;" vertex="1" parent="lane-ddb">
+          <mxGeometry x="30" y="40" width="130" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="ddb-findings" value="SCAN#{id}|FINDING#{id}&#xa;pillar, severity,&#xa;resource, recommendation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3334B9;fontSize=8;" vertex="1" parent="lane-ddb">
+          <mxGeometry x="190" y="40" width="160" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="ddb-errors" value="SCAN#{id}|ERROR#{i}&#xa;error messages" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3334B9;fontSize=9;" vertex="1" parent="lane-ddb">
+          <mxGeometry x="380" y="40" width="130" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="ddb-accounts" value="ACCOUNT#{id}|META&#xa;role_arn, alias,&#xa;connection status" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3334B9;fontSize=9;" vertex="1" parent="lane-ddb">
+          <mxGeometry x="540" y="40" width="140" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="ddb-history" value="HISTORY|SCAN#{ts}&#xa;scan summary&#xa;for trend charts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3334B9;fontSize=9;" vertex="1" parent="lane-ddb">
+          <mxGeometry x="710" y="40" width="130" height="55" as="geometry"/>
+        </mxCell>
+
+        <!-- Swimlane: Target Accounts -->
+        <mxCell id="lane-target" value="Target AWS Accounts (Read-Only Access)" style="shape=swimlane;startSize=30;fillColor=#F5F5F5;strokeColor=#82B366;fontStyle=1;fontSize=13;horizontal=1;swimlaneLine=1;rounded=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="20" y="900" width="1360" height="120" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="tgt-ec2" value="EC2&#xa;describe-instances&#xa;describe-security-groups" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82B366;fontSize=8;" vertex="1" parent="lane-target">
+          <mxGeometry x="30" y="40" width="130" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="tgt-s3" value="S3&#xa;list-buckets&#xa;get-bucket-encryption&#xa;get-bucket-versioning" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82B366;fontSize=8;" vertex="1" parent="lane-target">
+          <mxGeometry x="180" y="40" width="130" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="tgt-rds" value="RDS&#xa;describe-db-instances" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82B366;fontSize=8;" vertex="1" parent="lane-target">
+          <mxGeometry x="330" y="40" width="120" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="tgt-iam" value="IAM&#xa;list-users&#xa;get-credential-report" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82B366;fontSize=8;" vertex="1" parent="lane-target">
+          <mxGeometry x="470" y="40" width="120" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="tgt-lambda" value="Lambda&#xa;list-functions&#xa;get-function-config" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82B366;fontSize=8;" vertex="1" parent="lane-target">
+          <mxGeometry x="610" y="40" width="120" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="tgt-more" value="DynamoDB, ELB,&#xa;CloudFront, ECS, EKS&#xa;(describe/list APIs)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82B366;fontSize=8;" vertex="1" parent="lane-target">
+          <mxGeometry x="750" y="40" width="130" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="tgt-cost" value="Cost Explorer&#xa;Compute Optimizer&#xa;Cost Optimization Hub&#xa;Trusted Advisor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#ED7100;fontSize=8;" vertex="1" parent="lane-target">
+          <mxGeometry x="900" y="40" width="140" height="55" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

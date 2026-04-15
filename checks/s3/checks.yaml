@@ -1,0 +1,59 @@
+checks:
+  - check_id: s3-001
+    service: s3
+    description: S3 bucket allows public access (Block Public Access settings not fully enabled)
+    pillar: security
+    severity: CRITICAL
+    evaluation_logic_ref: "checks.s3:check_public_access_blocked"
+    remediation_guidance: >
+      Enable all four S3 Block Public Access settings on the bucket:
+      BlockPublicAcls, IgnorePublicAcls, BlockPublicPolicy, and
+      RestrictPublicBuckets.
+    documentation_url: https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html
+
+  - check_id: s3-002
+    service: s3
+    description: S3 bucket does not have default encryption enabled
+    pillar: security
+    severity: HIGH
+    evaluation_logic_ref: "checks.s3:check_encryption_enabled"
+    remediation_guidance: >
+      Enable default encryption on the bucket using SSE-S3 (AES-256) or
+      SSE-KMS. All new objects will be automatically encrypted at rest.
+    documentation_url: https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucket-encryption.html
+
+  - check_id: s3-003
+    service: s3
+    description: S3 bucket does not have versioning enabled
+    pillar: reliability
+    severity: HIGH
+    evaluation_logic_ref: "checks.s3:check_versioning_enabled"
+    remediation_guidance: >
+      Enable versioning on the bucket to protect against accidental
+      deletions and overwrites. Versioning allows you to recover
+      previous versions of objects.
+    documentation_url: https://docs.aws.amazon.com/AmazonS3/latest/userguide/Versioning.html
+
+  - check_id: s3-004
+    service: s3
+    description: S3 bucket does not have server access logging enabled
+    pillar: security
+    severity: MEDIUM
+    evaluation_logic_ref: "checks.s3:check_logging_enabled"
+    remediation_guidance: >
+      Enable server access logging to track requests made to the bucket.
+      Configure a target bucket to store the access logs for auditing
+      and security analysis.
+    documentation_url: https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerLogs.html
+
+  - check_id: s3-005
+    service: s3
+    description: S3 bucket does not have a lifecycle policy configured
+    pillar: cost_optimization
+    severity: MEDIUM
+    evaluation_logic_ref: "checks.s3:check_lifecycle_policy"
+    remediation_guidance: >
+      Configure lifecycle rules to automatically transition objects to
+      cheaper storage classes (e.g., S3 Glacier) or delete expired objects
+      to reduce storage costs.
+    documentation_url: https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AWS Well-Architected Review Tool</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- CDN Scripts: SRI hashes must be generated from actual files before production deployment -->
+  <!-- Run: curl -s <URL> | openssl dgst -sha384 -binary | openssl base64 -A -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/amazon-cognito-identity-js@6/dist/amazon-cognito-identity.min.js" crossorigin="anonymous"></script>
+</head>
+<body data-theme="light">
+  <div id="app">
+    <!-- Sidebar Navigation -->
+    <nav id="sidebar">
+      <div class="sidebar-header">
+        <h1 class="sidebar-logo">WA Review</h1>
+        <button id="sidebar-toggle" class="btn-icon" aria-label="Toggle sidebar">=</button>
+      </div>
+
+      <ul class="nav-links">
+        <li><a href="#overview" class="nav-link active" data-page="overview">Overview</a></li>
+        <li><a href="#findings" class="nav-link" data-page="findings">Findings</a></li>
+        <li><a href="#accounts" class="nav-link" data-page="accounts">Accounts</a></li>
+        <li><a href="#scan" class="nav-link" data-page="scan">Scan</a></li>
+        <li><a href="#history" class="nav-link" data-page="history">History</a></li>
+        <li><a href="#report" class="nav-link" data-page="report">Report</a></li>
+        <li><a href="#cost" class="nav-link" data-page="cost">Cost Advisor</a></li>
+        <li id="nav-team"><a href="#team" class="nav-link" data-page="team">Team</a></li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-branding">
+          <img src="img/com7-logo.avif" alt="Com7 Business" class="sidebar-logo-img">
+          <span class="sidebar-branding-text">Powered by Com7 Business</span>
+        </div>
+        <button id="theme-toggle" class="btn btn-secondary btn-sm" aria-label="Toggle dark mode">Dark Mode</button>
+        <div id="user-info" class="user-info">
+          <span id="user-email" class="user-email"></span>
+          <span id="user-role" class="user-role-badge"></span>
+        </div>
+        <button id="logout-btn" class="btn btn-secondary btn-sm btn-block">Logout</button>
+      </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main id="content">
+      <p>Loading...</p>
+    </main>
+  </div>
+
+  <!-- Modal Container -->
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div id="modal-container" class="modal-container">
+      <div class="modal-header">
+        <h2 id="modal-title"></h2>
+        <button class="modal-close btn-icon" onclick="App.hideModal()">&times;</button>
+      </div>
+      <div id="modal-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/pages/login.js"></script>
+  <script src="js/pages/overview.js"></script>
+  <script src="js/pages/findings.js"></script>
+  <script src="js/pages/accounts.js"></script>
+  <script src="js/pages/scan.js"></script>
+  <script src="js/pages/history.js"></script>
+  <script src="js/pages/team.js"></script>
+  <script src="js/pages/report.js"></script>
+  <script src="js/pages/cost.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

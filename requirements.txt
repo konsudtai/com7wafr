@@ -1,0 +1,9 @@
+boto3
+pydantic>=2.0
+PyYAML
+hypothesis
+pytest
+pytest-cov
+moto[all]
+aws-cdk-lib
+constructs

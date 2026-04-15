@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+
+# Build outputs
+*.js.map
+dist/
+*.d.ts
+!infra/**/*.d.ts
+
+# CDK
+cdk.out/
+cdk-outputs.json
+
+# Deployment
+deployment-outputs.txt
+dashboard/js/config.js
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Temp
+*.bak
+*.tmp

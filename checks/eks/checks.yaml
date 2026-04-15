@@ -1,0 +1,24 @@
+checks:
+  - check_id: eks-001
+    service: eks
+    description: EKS cluster does not have control plane logging enabled
+    pillar: security
+    severity: MEDIUM
+    evaluation_logic_ref: "checks.eks:check_control_plane_logging"
+    remediation_guidance: >
+      Enable control plane logging for the EKS cluster to send API server,
+      audit, authenticator, controller manager, and scheduler logs to
+      CloudWatch Logs for security monitoring and troubleshooting.
+    documentation_url: https://docs.aws.amazon.com/eks/latest/userguide/control-plane-logs.html
+
+  - check_id: eks-002
+    service: eks
+    description: EKS cluster has public endpoint access enabled
+    pillar: security
+    severity: HIGH
+    evaluation_logic_ref: "checks.eks:check_public_endpoint_disabled"
+    remediation_guidance: >
+      Disable public endpoint access for the EKS cluster API server and
+      enable private endpoint access. This ensures the API server is only
+      accessible from within the VPC or connected networks.
+    documentation_url: https://docs.aws.amazon.com/eks/latest/userguide/cluster-endpoint.html

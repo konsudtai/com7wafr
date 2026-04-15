@@ -1,0 +1,36 @@
+checks:
+  - check_id: rds-001
+    service: rds
+    description: RDS instance does not have Multi-AZ deployment enabled
+    pillar: reliability
+    severity: HIGH
+    evaluation_logic_ref: "checks.rds:check_multi_az_enabled"
+    remediation_guidance: >
+      Enable Multi-AZ deployment for the RDS instance to provide high
+      availability and automatic failover. Modify the DB instance and
+      enable the Multi-AZ option.
+    documentation_url: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.MultiAZ.html
+
+  - check_id: rds-002
+    service: rds
+    description: RDS instance does not have encryption at rest enabled
+    pillar: security
+    severity: HIGH
+    evaluation_logic_ref: "checks.rds:check_encryption_at_rest"
+    remediation_guidance: >
+      Enable encryption at rest for the RDS instance. Note that encryption
+      cannot be enabled on an existing unencrypted instance — you must create
+      an encrypted snapshot and restore from it, or create a new encrypted instance.
+    documentation_url: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.Encryption.html
+
+  - check_id: rds-003
+    service: rds
+    description: RDS instance does not have automated backups enabled
+    pillar: reliability
+    severity: MEDIUM
+    evaluation_logic_ref: "checks.rds:check_automated_backups"
+    remediation_guidance: >
+      Enable automated backups by setting the backup retention period to
+      a value greater than 0 (recommended: 7 days or more). This enables
+      point-in-time recovery for the DB instance.
+    documentation_url: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_WorkingWithAutomatedBackups.html

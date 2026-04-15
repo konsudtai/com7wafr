@@ -1,0 +1,36 @@
+checks:
+  - check_id: lambda-001
+    service: lambda
+    description: Lambda function uses default memory size (128 MB) which may not be optimal
+    pillar: performance_efficiency
+    severity: MEDIUM
+    evaluation_logic_ref: "checks.lambda_:check_default_memory"
+    remediation_guidance: >
+      Review the function's memory usage with AWS Lambda Power Tuning and
+      adjust the memory size accordingly. The default 128 MB is often
+      insufficient and can lead to slower execution times.
+    documentation_url: https://docs.aws.amazon.com/lambda/latest/dg/configuration-memory.html
+
+  - check_id: lambda-002
+    service: lambda
+    description: Lambda function does not have a dead letter queue configured
+    pillar: reliability
+    severity: MEDIUM
+    evaluation_logic_ref: "checks.lambda_:check_dead_letter_queue"
+    remediation_guidance: >
+      Configure a dead letter queue (SQS queue or SNS topic) for the function
+      to capture events that fail processing after all retries are exhausted.
+      This prevents silent data loss.
+    documentation_url: https://docs.aws.amazon.com/lambda/latest/dg/invocation-async.html#invocation-dlq
+
+  - check_id: lambda-003
+    service: lambda
+    description: Lambda function is using a deprecated runtime version
+    pillar: operational_excellence
+    severity: HIGH
+    evaluation_logic_ref: "checks.lambda_:check_runtime_deprecated"
+    remediation_guidance: >
+      Update the function to use a supported runtime version. Deprecated
+      runtimes no longer receive security patches and may stop working.
+      Test the function with the new runtime before deploying.
+    documentation_url: https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html

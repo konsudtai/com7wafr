@@ -1,0 +1,36 @@
+checks:
+  - check_id: iam-001
+    service: iam
+    description: Root account has active access keys
+    pillar: security
+    severity: CRITICAL
+    evaluation_logic_ref: "checks.iam:check_root_access_keys"
+    remediation_guidance: >
+      Delete all access keys associated with the root account. Use IAM users
+      or roles with appropriate permissions instead. Root account access keys
+      pose a significant security risk if compromised.
+    documentation_url: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_root-user_manage_delete-key.html
+
+  - check_id: iam-002
+    service: iam
+    description: IAM user has inline policy attached directly
+    pillar: security
+    severity: MEDIUM
+    evaluation_logic_ref: "checks.iam:check_user_inline_policy"
+    remediation_guidance: >
+      Replace inline policies with managed policies attached via IAM groups.
+      Managed policies are easier to audit, reuse, and manage at scale.
+      Move the user to a group with the appropriate managed policy.
+    documentation_url: https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_managed-vs-inline.html
+
+  - check_id: iam-003
+    service: iam
+    description: IAM user with console access does not have MFA enabled
+    pillar: security
+    severity: HIGH
+    evaluation_logic_ref: "checks.iam:check_mfa_enabled"
+    remediation_guidance: >
+      Enable multi-factor authentication (MFA) for all IAM users that have
+      console access. Use virtual MFA devices, hardware MFA tokens, or
+      FIDO security keys.
+    documentation_url: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_mfa_enable.html

@@ -1,0 +1,24 @@
+checks:
+  - check_id: dynamodb-001
+    service: dynamodb
+    description: DynamoDB table does not have Point-in-Time Recovery (PITR) enabled
+    pillar: reliability
+    severity: MEDIUM
+    evaluation_logic_ref: "checks.dynamodb:check_pitr_enabled"
+    remediation_guidance: >
+      Enable Point-in-Time Recovery (PITR) on the DynamoDB table to allow
+      continuous backups and restore to any point in the last 35 days.
+      This protects against accidental writes or deletes.
+    documentation_url: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/PointInTimeRecovery.html
+
+  - check_id: dynamodb-002
+    service: dynamodb
+    description: DynamoDB table is not encrypted with a customer-managed KMS key
+    pillar: security
+    severity: MEDIUM
+    evaluation_logic_ref: "checks.dynamodb:check_kms_encryption"
+    remediation_guidance: >
+      Configure the DynamoDB table to use a customer-managed AWS KMS key
+      for encryption at rest instead of the default AWS owned key. This
+      provides more control over the encryption key lifecycle and auditing.
+    documentation_url: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/EncryptionAtRest.html
