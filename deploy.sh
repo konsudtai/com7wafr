@@ -129,11 +129,6 @@ else
 fi
 
 if [ -z "$REGION" ]; then
-  # CloudShell sets AWS_REGION automatically, but just in case:
-  REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region 2>/dev/null || true)
-fi
-
-if [ -z "$REGION" ]; then
   REGION="ap-southeast-1"
   warn "Could not detect region. Using default: $REGION"
   warn "To specify a region, use: ./deploy.sh --region ap-southeast-1 --admin-email ..."
