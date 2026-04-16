@@ -77,7 +77,7 @@ This tool automates the Well-Architected review process by scanning AWS resource
 | Chart.js via CDN | Charts without npm build step |
 | DynamoDB single-table design | Low latency, low cost, serverless-native |
 | Cognito User Pool | Managed auth with RBAC via custom attributes |
-| AWS CDK (TypeScript) | Infrastructure as Code for all stacks |
+| AWS CloudFormation | Infrastructure as Code for all stacks |
 | Read-only IAM roles | Least privilege for cross-account scanning |
 
 ---
@@ -165,7 +165,7 @@ graph TB
     RE -.-> P1 & P2 & P3 & P4 & P5
 ```
 
-### CDK Stacks
+### CloudFormation Stacks
 
 ```mermaid
 graph LR
@@ -452,7 +452,7 @@ sequenceDiagram
 
 | Component | Technology | Purpose |
 |-----------|-----------|---------|
-| IaC | AWS CDK (TypeScript) | All infrastructure as code |
+| IaC | AWS CloudFormation (YAML) | All infrastructure as code |
 | Compute | AWS Lambda | Serverless API handlers |
 | API | Amazon API Gateway | REST API with Cognito Authorizer |
 | Database | Amazon DynamoDB | Single-table design, PAY_PER_REQUEST |
@@ -557,9 +557,10 @@ sequenceDiagram
 
 All pre-installed in AWS CloudShell:
 - AWS CLI with configured credentials
-- Node.js 18+ and npm
-- Python 3.9+
 - Git
+
+Optional (for Lambda TypeScript build):
+- Node.js 18+ and npm
 
 ### One-Command Deployment (CloudShell)
 
@@ -608,13 +609,12 @@ rm -rf com7wafr && git clone https://github.com/konsudtai/com7wafr.git && cd com
 
 | Step | Action | Duration |
 |------|--------|----------|
-| 1 | Check prerequisites (AWS CLI, Node.js, Python, CDK) | 5s |
-| 2 | Install dependencies (backend npm, infra npm, Python pip) | 30s |
-| 3 | Build backend TypeScript Lambda handlers | 10s |
-| 4 | CDK bootstrap (first time only) | 30s |
-| 5 | Deploy 4 CDK stacks (Auth, Data, API, Frontend) | 5-8 min |
-| 6 | Upload dashboard to S3, inject config, invalidate CloudFront | 15s |
-| 7 | Create initial admin user in Cognito | 5s |
+| 1 | Check prerequisites (AWS CLI only) | 5s |
+| 2 | Build and upload Lambda code to S3 | 30s |
+| 3 | Deploy 4 CloudFormation stacks | 5-8 min |
+| 4 | Upload dashboard to S3, inject config | 15s |
+| 5 | Invalidate CloudFront cache | 5s |
+| 6 | Create initial admin user in Cognito | 5s |
 
 ### After Deployment
 
@@ -939,15 +939,11 @@ pytest -k "roundtrip or invariant or correctness"
 │   ├── package.json
 │   └── tsconfig.json
 │
-├── infra/                   # CDK stacks (TypeScript)
-│   ├── bin/app.ts           # Stack wiring
-│   ├── lib/
-│   │   ├── auth-stack.ts    # Cognito
-│   │   ├── data-stack.ts    # DynamoDB
-│   │   ├── api-stack.ts     # API Gateway + Lambda
-│   │   └── frontend-stack.ts # S3 + CloudFront
-│   ├── package.json
-│   └── cdk.json
+├── cfn/                     # CloudFormation templates (YAML)
+│   ├── auth.yaml            # Cognito User Pool + MFA
+│   ├── data.yaml            # DynamoDB table
+│   ├── api.yaml             # API Gateway + Lambda + WAF
+│   └── frontend.yaml        # S3 + CloudFront
 │
 ├── core/                    # Python core (shared CLI + backend)
 │   ├── models.py            # Pydantic v2 data models
@@ -982,7 +978,7 @@ pytest -k "roundtrip or invariant or correctness"
 
 | Issue | Solution |
 |-------|----------|
-| `cdk bootstrap` fails | Ensure your IAM user/role has `AdministratorAccess` or CDK bootstrap permissions |
+| `cdk bootstrap` fails | Not needed — uses CloudFormation directly |
 | CloudShell disk full | Run `rm -rf /tmp/* ~/.npm/_cacache` then retry |
 | Lambda timeout on large scans | Reduce `concurrency_limit` or scan fewer services/regions per run |
 | Cognito "User already exists" | The admin user was already created; check email for temp password |
@@ -997,8 +993,8 @@ pytest -k "roundtrip or invariant or correctness"
 # Check deployment outputs
 cat deployment-outputs.txt
 
-# View CDK stack status
-aws cloudformation describe-stacks --query "Stacks[?starts_with(StackName,'WAReview')].{Name:StackName,Status:StackStatus}" --output table
+# View stack status
+aws cloudformation describe-stacks --query "Stacks[?starts_with(StackName,'wa-review')].{Name:StackName,Status:StackStatus}" --output table
 
 # View Lambda logs
 aws logs tail /aws/lambda/wa-review-scan-handler --follow
