@@ -191,6 +191,10 @@ cd "$INFRA_DIR"
 npm ci --silent 2>/dev/null || npm install --silent
 success "Infrastructure dependencies installed"
 
+# Free disk space after npm installs (CloudShell has 1GB limit)
+npm cache clean --force 2>/dev/null || true
+rm -rf /tmp/npm-* 2>/dev/null || true
+
 # Python (for CLI tools, optional)
 cd "$SCRIPT_DIR"
 if [ -f requirements.txt ]; then
@@ -203,6 +207,9 @@ fi
 # Step 3: Build Backend
 # ============================================================
 step "Step 3/7: Building backend Lambda handlers"
+
+# Clear npm cache to free disk space (CloudShell has only 1GB)
+npm cache clean --force 2>/dev/null || true
 
 cd "$BACKEND_DIR"
 npx tsc
