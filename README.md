@@ -8,13 +8,25 @@ Automated platform for scanning and evaluating AWS environments against the 5 pi
 
 Open **AWS CloudShell** and run:
 
+**First time:**
 ```bash
-git clone https://github.com/konsudtai/com7wafr.git && cd com7wafr && chmod +x deploy.sh && ./deploy.sh --admin-email admin@yourcompany.com
+git clone https://github.com/konsudtai/com7wafr.git && cd com7wafr && chmod +x deploy.sh && ./deploy.sh --region ap-southeast-1 --admin-email admin@yourcompany.com
+```
+
+**Re-deploy (update):**
+```bash
+cd com7wafr && git pull && ./deploy.sh --region ap-southeast-1 --admin-email admin@yourcompany.com
+```
+
+**Re-deploy (clean):**
+```bash
+rm -rf com7wafr && git clone https://github.com/konsudtai/com7wafr.git && cd com7wafr && chmod +x deploy.sh && ./deploy.sh --region ap-southeast-1 --admin-email admin@yourcompany.com
 ```
 
 The script deploys the entire platform in approximately 10 minutes and outputs the Dashboard URL.
 
 > Replace `admin@yourcompany.com` with the actual admin email. A temporary password will be sent to this email.
+> Replace `ap-southeast-1` with your preferred AWS region.
 
 ---
 
@@ -551,15 +563,26 @@ All pre-installed in AWS CloudShell:
 
 ### One-Command Deployment (CloudShell)
 
+**First time:**
 ```bash
-git clone https://github.com/konsudtai/com7wafr.git && cd com7wafr && chmod +x deploy.sh && ./deploy.sh --admin-email admin@yourcompany.com
+git clone https://github.com/konsudtai/com7wafr.git && cd com7wafr && chmod +x deploy.sh && ./deploy.sh --region ap-southeast-1 --admin-email admin@yourcompany.com
+```
+
+**Re-deploy (update):**
+```bash
+cd com7wafr && git pull && ./deploy.sh --region ap-southeast-1 --admin-email admin@yourcompany.com
+```
+
+**Re-deploy (clean):**
+```bash
+rm -rf com7wafr && git clone https://github.com/konsudtai/com7wafr.git && cd com7wafr && chmod +x deploy.sh && ./deploy.sh --region ap-southeast-1 --admin-email admin@yourcompany.com
 ```
 
 ### Deployment Options
 
 ```bash
 # Basic deployment
-./deploy.sh --admin-email admin@company.com
+./deploy.sh --region ap-southeast-1 --admin-email admin@company.com
 
 # Specific region
 ./deploy.sh --region ap-southeast-1 --admin-email admin@company.com
