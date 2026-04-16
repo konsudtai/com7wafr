@@ -1,0 +1,280 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: WA Review Tool - API (API Gateway + Lambda + WAF)
+Parameters:
+  UserPoolArn:
+    Type: String
+  TableName:
+    Type: String
+  TableArn:
+    Type: String
+  UserPoolId:
+    Type: String
+  S3BucketName:
+    Type: String
+    Description: S3 bucket containing Lambda code
+  LambdaCodeKey:
+    Type: String
+    Default: lambda/handlers.zip
+
+Resources:
+  # Lambda Execution Role
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: wa-review-lambda-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: lambda.amazonaws.com}
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:UpdateItem, dynamodb:DeleteItem, dynamodb:Query, dynamodb:Scan]
+                Resource:
+                  - !Ref TableArn
+                  - !Sub '${TableArn}/index/*'
+        - PolicyName: STSAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: sts:AssumeRole
+                Resource: 'arn:aws:iam::*:role/WAReviewReadOnly'
+        - PolicyName: CognitoAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [cognito-idp:AdminCreateUser, cognito-idp:AdminDeleteUser, cognito-idp:AdminUpdateUserAttributes, cognito-idp:AdminUserGlobalSignOut, cognito-idp:ListUsers]
+                Resource: !Ref UserPoolArn
+
+  # Lambda Functions
+  ScanHandler:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: wa-review-scan-handler
+      Runtime: nodejs20.x
+      Handler: dist/handlers/scan-handler.handler
+      Code:
+        S3Bucket: !Ref S3BucketName
+        S3Key: !Ref LambdaCodeKey
+      MemorySize: 256
+      Timeout: 60
+      Role: !GetAtt LambdaRole.Arn
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TableName
+          USER_POOL_ID: !Ref UserPoolId
+
+  AccountHandler:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: wa-review-account-handler
+      Runtime: nodejs20.x
+      Handler: dist/handlers/account-handler.handler
+      Code:
+        S3Bucket: !Ref S3BucketName
+        S3Key: !Ref LambdaCodeKey
+      MemorySize: 256
+      Timeout: 60
+      Role: !GetAtt LambdaRole.Arn
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TableName
+          USER_POOL_ID: !Ref UserPoolId
+
+  TeamHandler:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: wa-review-team-handler
+      Runtime: nodejs20.x
+      Handler: dist/handlers/team-handler.handler
+      Code:
+        S3Bucket: !Ref S3BucketName
+        S3Key: !Ref LambdaCodeKey
+      MemorySize: 256
+      Timeout: 60
+      Role: !GetAtt LambdaRole.Arn
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TableName
+          USER_POOL_ID: !Ref UserPoolId
+
+  # API Gateway
+  Api:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: wa-review-api
+
+  CognitoAuthorizer:
+    Type: AWS::ApiGateway::Authorizer
+    Properties:
+      Name: wa-review-cognito
+      RestApiId: !Ref Api
+      Type: COGNITO_USER_POOLS
+      IdentitySource: method.request.header.Authorization
+      ProviderARNs: [!Ref UserPoolArn]
+
+  # /scans
+  ScansResource:
+    Type: AWS::ApiGateway::Resource
+    Properties: {RestApiId: !Ref Api, ParentId: !GetAtt Api.RootResourceId, PathPart: scans}
+
+  ScansPost:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref ScansResource
+      HttpMethod: POST
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ScanHandler.Arn}/invocations'
+
+  ScansGet:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref ScansResource
+      HttpMethod: GET
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ScanHandler.Arn}/invocations'
+
+  # /accounts
+  AccountsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties: {RestApiId: !Ref Api, ParentId: !GetAtt Api.RootResourceId, PathPart: accounts}
+
+  AccountsPost:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref AccountsResource
+      HttpMethod: POST
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccountHandler.Arn}/invocations'
+
+  AccountsGet:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref AccountsResource
+      HttpMethod: GET
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccountHandler.Arn}/invocations'
+
+  # /team/members
+  TeamResource:
+    Type: AWS::ApiGateway::Resource
+    Properties: {RestApiId: !Ref Api, ParentId: !GetAtt Api.RootResourceId, PathPart: team}
+
+  TeamMembersResource:
+    Type: AWS::ApiGateway::Resource
+    Properties: {RestApiId: !Ref Api, ParentId: !Ref TeamResource, PathPart: members}
+
+  TeamMembersPost:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref TeamMembersResource
+      HttpMethod: POST
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TeamHandler.Arn}/invocations'
+
+  TeamMembersGet:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref TeamMembersResource
+      HttpMethod: GET
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TeamHandler.Arn}/invocations'
+
+  # Lambda Permissions for API Gateway
+  ScanPermission:
+    Type: AWS::Lambda::Permission
+    Properties: {FunctionName: !Ref ScanHandler, Action: lambda:InvokeFunction, Principal: apigateway.amazonaws.com, SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*'}
+
+  AccountPermission:
+    Type: AWS::Lambda::Permission
+    Properties: {FunctionName: !Ref AccountHandler, Action: lambda:InvokeFunction, Principal: apigateway.amazonaws.com, SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*'}
+
+  TeamPermission:
+    Type: AWS::Lambda::Permission
+    Properties: {FunctionName: !Ref TeamHandler, Action: lambda:InvokeFunction, Principal: apigateway.amazonaws.com, SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*'}
+
+  # API Deployment
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn: [ScansPost, ScansGet, AccountsPost, AccountsGet, TeamMembersPost, TeamMembersGet]
+    Properties:
+      RestApiId: !Ref Api
+
+  ApiStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId: !Ref Api
+      DeploymentId: !Ref ApiDeployment
+      StageName: prod
+
+  # WAF
+  WebACL:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: wa-review-api-waf
+      Scope: REGIONAL
+      DefaultAction: {Allow: {}}
+      VisibilityConfig: {CloudWatchMetricsEnabled: true, MetricName: wa-review-waf, SampledRequestsEnabled: true}
+      Rules:
+        - Name: CommonRuleSet
+          Priority: 1
+          OverrideAction: {None: {}}
+          Statement:
+            ManagedRuleGroupStatement: {VendorName: AWS, Name: AWSManagedRulesCommonRuleSet}
+          VisibilityConfig: {CloudWatchMetricsEnabled: true, MetricName: CommonRuleSet, SampledRequestsEnabled: true}
+        - Name: RateLimit
+          Priority: 2
+          Action: {Block: {}}
+          Statement:
+            RateBasedStatement: {Limit: 1000, AggregateKeyType: IP}
+          VisibilityConfig: {CloudWatchMetricsEnabled: true, MetricName: RateLimit, SampledRequestsEnabled: true}
+
+  WebACLAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    Properties:
+      ResourceArn: !Sub 'arn:aws:apigateway:${AWS::Region}::/restapis/${Api}/stages/${ApiStage}'
+      WebACLArn: !GetAtt WebACL.Arn
+
+Outputs:
+  ApiUrl:
+    Value: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod'
+    Export: {Name: WAReview-ApiUrl}
