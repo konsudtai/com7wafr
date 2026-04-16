@@ -126,13 +126,6 @@ const Auth = (() => {
     });
   }
 
-  // --- MFA State ---
-  let mfaSetupRequired = false;
-  let mfaVerifyRequired = false;
-  let mfaSecretCode = null;
-  let pendingLoginResolve = null;
-  let pendingLoginReject = null;
-
   // --- Login ---
   function login(email, password) {
     // Use demo mode when Cognito is not configured
@@ -146,9 +139,6 @@ const Auth = (() => {
         reject(new Error(GENERIC_ERROR));
         return;
       }
-
-      pendingLoginResolve = resolve;
-      pendingLoginReject = reject;
 
       const authDetails = new AmazonCognitoIdentity.AuthenticationDetails({
         Username: email,
@@ -177,29 +167,6 @@ const Auth = (() => {
           newPasswordUserAttributes = userAttributes;
           resolve({ success: false, newPasswordRequired: true });
         },
-
-        // MFA TOTP verification required (user already has MFA set up)
-        totpRequired: (challengeName, challengeParameters) => {
-          mfaVerifyRequired = true;
-          mfaSetupRequired = false;
-          resolve({ success: false, mfaVerifyRequired: true });
-        },
-
-        // MFA setup required (first time — user needs to scan QR code)
-        mfaSetup: (challengeName, challengeParameters) => {
-          mfaSetupRequired = true;
-          mfaVerifyRequired = false;
-          // Associate TOTP software token to get the secret code
-          cognitoUser.associateSoftwareToken({
-            associateSecretCode: (secretCode) => {
-              mfaSecretCode = secretCode;
-              resolve({ success: false, mfaSetupRequired: true, secretCode: secretCode });
-            },
-            onFailure: (err) => {
-              reject(new Error('MFA setup failed. Please try again.'));
-            },
-          });
-        },
       });
     });
   }
@@ -207,9 +174,6 @@ const Auth = (() => {
   function handleAuthSuccess(session) {
     currentSession = session;
     newPasswordRequired = false;
-    mfaSetupRequired = false;
-    mfaVerifyRequired = false;
-    mfaSecretCode = null;
 
     const idToken = session.getIdToken();
     const role = extractRole(idToken);
@@ -221,57 +185,6 @@ const Auth = (() => {
       App.setAuthenticated(userEmail, role);
     }
   }
-
-  // --- Verify MFA TOTP code (for users who already have MFA set up) ---
-  function verifyMfaCode(totpCode) {
-    return new Promise((resolve, reject) => {
-      if (!cognitoUser) {
-        reject(new Error(GENERIC_ERROR));
-        return;
-      }
-
-      cognitoUser.sendMFACode(totpCode, {
-        onSuccess: (session) => {
-          handleAuthSuccess(session);
-          resolve({ success: true });
-        },
-        onFailure: (err) => {
-          reject(new Error('Invalid MFA code. Please try again.'));
-        },
-      }, 'SOFTWARE_TOKEN_MFA');
-    });
-  }
-
-  // --- Complete MFA setup (first time — verify the TOTP token) ---
-  function completeMfaSetup(totpCode) {
-    return new Promise((resolve, reject) => {
-      if (!cognitoUser) {
-        reject(new Error(GENERIC_ERROR));
-        return;
-      }
-
-      cognitoUser.verifySoftwareToken(totpCode, 'WAReviewMFA', {
-        onSuccess: (session) => {
-          // Set TOTP as preferred MFA
-          cognitoUser.setUserMfaPreference(null, { PreferredMfa: true, Enabled: true }, (err, result) => {
-            if (err) {
-              // MFA is set up even if preference fails — continue
-            }
-            handleAuthSuccess(session);
-            resolve({ success: true });
-          });
-        },
-        onFailure: (err) => {
-          reject(new Error('Invalid MFA code. Please check your authenticator app and try again.'));
-        },
-      });
-    });
-  }
-
-  // --- Check MFA state ---
-  function isMfaSetupRequired() { return mfaSetupRequired; }
-  function isMfaVerifyRequired() { return mfaVerifyRequired; }
-  function getMfaSecretCode() { return mfaSecretCode; }
 
   // --- Complete new password challenge ---
   function completeNewPassword(newPassword) {
@@ -386,15 +299,10 @@ const Auth = (() => {
   return {
     login,
     completeNewPassword,
-    verifyMfaCode,
-    completeMfaSetup,
     logout,
     checkSession,
     getIdToken,
     isNewPasswordRequired,
-    isMfaSetupRequired,
-    isMfaVerifyRequired,
-    getMfaSecretCode,
     isDemoMode,
     GENERIC_ERROR,
   };

@@ -117,7 +117,7 @@ graph TB
             S3[" S3 Dashboard Files "]:::s3
         end
         subgraph AU [" Auth "]
-            COG[" Cognito User Pool + MFA TOTP "]:::cog
+            COG[" Cognito User Pool "]:::cog
         end
         subgraph AP [" API "]
             GW[" API Gateway REST + Cognito Authorizer "]:::api
@@ -176,7 +176,6 @@ graph LR
 
     subgraph S1 [" WAReviewAuthStack "]
         A1[Cognito User Pool]
-        A2[MFA TOTP Required]
     end
     S1:::au
 
@@ -253,9 +252,6 @@ sequenceDiagram
     U->>COG: 1. Login (email + password)
     COG-->>U: NEW_PASSWORD_REQUIRED (first login)
     U->>COG: 2. Set new password
-    COG-->>U: MFA_SETUP challenge
-    U->>U: 3. Scan QR code with Authenticator app
-    U->>COG: 4. Submit TOTP code
     COG-->>U: JWT Tokens (ID + Access + Refresh)
     end
 
@@ -445,7 +441,7 @@ sequenceDiagram
 | Dashboard | Vanilla HTML/CSS/JS | No build tools required |
 | Charts | Chart.js v4 (CDN) | Radar, doughnut, bar, line charts |
 | PDF Export | html2pdf.js (CDN) | Client-side PDF generation |
-| Authentication | amazon-cognito-identity-js (CDN) | Cognito login/token management |
+| Authentication | amazon-cognito-identity-js (CDN) | Cognito login/token management (no MFA) |
 | Design System | Custom CSS (Claude-inspired) | Warm parchment theme, dark/light mode |
 
 ### Infrastructure
@@ -620,7 +616,7 @@ rm -rf com7wafr && git clone https://github.com/konsudtai/com7wafr.git && cd com
 
 1. Open the Dashboard URL from the output
 2. Check email for temporary password
-3. Login and change password on first login
+3. Login and set a new password on first login (use the show/hide toggle to verify your password)
 4. Go to **Accounts** page to add AWS accounts for scanning
 
 ### Updating
@@ -917,10 +913,10 @@ pytest -k "roundtrip or invariant or correctness"
 │   └── js/
 │       ├── config.js        # Auto-generated (API URL, Cognito IDs)
 │       ├── app.js           # Router, navigation, dark/light mode
-│       ├── auth.js          # Cognito auth + demo mode
+│       ├── auth.js          # Cognito auth (no MFA) + demo mode
 │       ├── api.js           # API client with JWT
 │       └── pages/
-│           ├── login.js     # Login + force change password
+│           ├── login.js     # Login + force change password + show/hide password
 │           ├── overview.js  # Charts (radar, doughnut, heatmap)
 │           ├── findings.js  # Filterable table + detail modal
 │           ├── accounts.js  # CRUD + IAM script generation
@@ -940,7 +936,7 @@ pytest -k "roundtrip or invariant or correctness"
 │   └── tsconfig.json
 │
 ├── cfn/                     # CloudFormation templates (YAML)
-│   ├── auth.yaml            # Cognito User Pool + MFA
+│   ├── auth.yaml            # Cognito User Pool
 │   ├── data.yaml            # DynamoDB table
 │   ├── api.yaml             # API Gateway + Lambda + WAF
 │   └── frontend.yaml        # S3 + CloudFront

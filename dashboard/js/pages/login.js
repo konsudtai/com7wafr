@@ -1,7 +1,6 @@
 /* ============================================
    WA Review Tool — Login Page
-   Login form, force change password,
-   MFA setup (QR code), MFA verification
+   Login form, force change password
    ============================================ */
 
 const LoginPage = (() => {
@@ -31,7 +30,10 @@ const LoginPage = (() => {
               </div>
               <div class="form-group">
                 <label for="login-password">รหัสผ่าน</label>
-                <input type="password" id="login-password" placeholder="รหัสผ่าน" required autocomplete="current-password">
+                <div style="position:relative;">
+                  <input type="password" id="login-password" placeholder="รหัสผ่าน" required autocomplete="current-password" style="padding-right:44px;">
+                  <button type="button" id="toggle-login-password" aria-label="แสดงรหัสผ่าน" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; padding:4px; color:var(--text-secondary); font-size:0.85rem;">แสดง</button>
+                </div>
               </div>
               <div id="login-error" class="alert alert-error hidden" role="alert"></div>
               <button type="submit" id="login-submit" class="btn btn-primary btn-block">เข้าสู่ระบบ</button>
@@ -56,41 +58,6 @@ const LoginPage = (() => {
             </form>
           </div>
 
-          <!-- Step 3: MFA Setup (first time — scan QR code) -->
-          <div id="mfa-setup-container" class="hidden">
-            <p style="font-weight:500; margin-bottom:8px;">ตั้งค่า Multi-Factor Authentication (MFA)</p>
-            <p class="text-secondary mb-16" style="font-size:0.88rem;">
-              สแกน QR code ด้านล่างด้วย authenticator app (Google Authenticator, Authy, Microsoft Authenticator) แล้วกรอกรหัส 6 หลัก
-            </p>
-            <div id="mfa-qr-container" style="text-align:center; margin-bottom:16px;">
-              <canvas id="mfa-qr-code" style="margin:0 auto;"></canvas>
-              <p id="mfa-secret-display" class="text-secondary mt-8" style="font-size:0.75rem; word-break:break-all;"></p>
-              <button id="btn-copy-secret" class="btn btn-secondary btn-sm mt-8">Copy Secret Key</button>
-            </div>
-            <form id="mfa-setup-form">
-              <div class="form-group">
-                <label for="mfa-setup-code">รหัส MFA (6 หลัก)</label>
-                <input type="text" id="mfa-setup-code" placeholder="123456" required pattern="[0-9]{6}" maxlength="6" inputmode="numeric" autocomplete="one-time-code" style="text-align:center; font-size:1.2rem; letter-spacing:8px;">
-              </div>
-              <div id="mfa-setup-error" class="alert alert-error hidden" role="alert"></div>
-              <button type="submit" id="mfa-setup-submit" class="btn btn-primary btn-block">ยืนยันและเปิดใช้ MFA</button>
-            </form>
-          </div>
-
-          <!-- Step 4: MFA Verify (returning user — enter TOTP code) -->
-          <div id="mfa-verify-container" class="hidden">
-            <p style="font-weight:500; margin-bottom:8px;">Multi-Factor Authentication</p>
-            <p class="text-secondary mb-16" style="font-size:0.88rem;">กรอกรหัส 6 หลักจาก authenticator app ของคุณ</p>
-            <form id="mfa-verify-form">
-              <div class="form-group">
-                <label for="mfa-verify-code">รหัส MFA</label>
-                <input type="text" id="mfa-verify-code" placeholder="123456" required pattern="[0-9]{6}" maxlength="6" inputmode="numeric" autocomplete="one-time-code" style="text-align:center; font-size:1.2rem; letter-spacing:8px;">
-              </div>
-              <div id="mfa-verify-error" class="alert alert-error hidden" role="alert"></div>
-              <button type="submit" id="mfa-verify-submit" class="btn btn-primary btn-block">ยืนยัน</button>
-            </form>
-          </div>
-
         </div>
       </div>
     `;
@@ -105,7 +72,7 @@ const LoginPage = (() => {
   }
 
   function hideAll() {
-    ['login-form-container', 'change-password-container', 'mfa-setup-container', 'mfa-verify-container'].forEach(id => {
+    ['login-form-container', 'change-password-container'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.classList.add('hidden');
     });
@@ -117,50 +84,16 @@ const LoginPage = (() => {
     if (el) el.classList.remove('hidden');
   }
 
-  // --- Generate QR code as text URI (for authenticator apps) ---
-  function generateQrCodeUri(secret, email) {
-    const issuer = encodeURIComponent('WAReview-Com7');
-    const account = encodeURIComponent(email || 'user');
-    return `otpauth://totp/${issuer}:${account}?secret=${secret}&issuer=${issuer}`;
-  }
-
-  function renderQrCode(secret, email) {
-    const uri = generateQrCodeUri(secret, email);
-    const container = document.getElementById('mfa-qr-container');
-    if (!container) return;
-
-    // SECURITY FIX: Client-side only — no external API calls for QR code generation.
-    // Show the secret key and otpauth URI for manual entry into authenticator apps.
-    container.innerHTML = `
-      <div style="background:var(--bg-page); border:1px solid var(--border-default); border-radius:8px; padding:16px; text-align:left;">
-        <p style="font-weight:500; margin-bottom:8px; font-size:0.88rem;">Secret Key (กรอกใน authenticator app):</p>
-        <code id="mfa-secret-text" style="font-size:1.1rem; font-weight:600; letter-spacing:2px; word-break:break-all; display:block; padding:8px; background:var(--bg-card); border-radius:4px; text-align:center;">${secret}</code>
-        <button id="btn-copy-secret" class="btn btn-secondary btn-sm mt-8" style="width:100%;">Copy Secret Key</button>
-
-        <hr style="margin:12px 0; border:none; border-top:1px solid var(--border-default);">
-
-        <p style="font-weight:500; margin-bottom:4px; font-size:0.82rem;">otpauth:// URI (สำหรับ import อัตโนมัติ):</p>
-        <code id="mfa-uri-text" style="font-size:0.72rem; word-break:break-all; display:block; padding:8px; background:var(--bg-card); border-radius:4px; color:var(--text-secondary);">${uri}</code>
-        <button id="btn-copy-uri" class="btn btn-secondary btn-sm mt-8" style="width:100%;">Copy URI</button>
-
-        <p class="text-secondary mt-8" style="font-size:0.78rem;">
-          วิธีใช้: เปิด Google Authenticator, Authy หรือ Microsoft Authenticator แล้วเลือก "Enter setup key" จากนั้นกรอก Secret Key ด้านบน
-        </p>
-      </div>
-    `;
-
-    document.getElementById('btn-copy-secret')?.addEventListener('click', () => {
-      navigator.clipboard.writeText(secret).then(() => {
-        const btn = document.getElementById('btn-copy-secret');
-        if (btn) { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Copy Secret Key'; }, 2000); }
-      });
-    });
-
-    document.getElementById('btn-copy-uri')?.addEventListener('click', () => {
-      navigator.clipboard.writeText(uri).then(() => {
-        const btn = document.getElementById('btn-copy-uri');
-        if (btn) { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Copy URI'; }, 2000); }
-      });
+  // --- Toggle password visibility ---
+  function initPasswordToggle(toggleId, inputId) {
+    const btn = document.getElementById(toggleId);
+    const input = document.getElementById(inputId);
+    if (!btn || !input) return;
+    btn.addEventListener('click', () => {
+      const isPassword = input.type === 'password';
+      input.type = isPassword ? 'text' : 'password';
+      btn.textContent = isPassword ? 'ซ่อน' : 'แสดง';
+      btn.setAttribute('aria-label', isPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน');
     });
   }
 
@@ -177,11 +110,6 @@ const LoginPage = (() => {
       const result = await Auth.login(email, password);
       if (result.newPasswordRequired) {
         showSection('change-password-container');
-      } else if (result.mfaSetupRequired) {
-        showSection('mfa-setup-container');
-        renderQrCode(result.secretCode, email);
-      } else if (result.mfaVerifyRequired) {
-        showSection('mfa-verify-container');
       }
     } catch (err) {
       showError('login-error', err.message || Auth.GENERIC_ERROR);
@@ -209,44 +137,11 @@ const LoginPage = (() => {
     }
   }
 
-  async function handleMfaSetup(e) {
-    e.preventDefault();
-    hideError('mfa-setup-error');
-    const code = document.getElementById('mfa-setup-code').value.trim();
-    if (!code || code.length !== 6) { showError('mfa-setup-error', 'กรุณากรอกรหัส 6 หลัก'); return; }
-
-    setLoading('mfa-setup-submit', true, 'ยืนยันและเปิดใช้ MFA', 'กำลังยืนยัน...');
-    try {
-      await Auth.completeMfaSetup(code);
-    } catch (err) {
-      showError('mfa-setup-error', err.message || 'รหัส MFA ไม่ถูกต้อง');
-    } finally {
-      setLoading('mfa-setup-submit', false, 'ยืนยันและเปิดใช้ MFA', 'กำลังยืนยัน...');
-    }
-  }
-
-  async function handleMfaVerify(e) {
-    e.preventDefault();
-    hideError('mfa-verify-error');
-    const code = document.getElementById('mfa-verify-code').value.trim();
-    if (!code || code.length !== 6) { showError('mfa-verify-error', 'กรุณากรอกรหัส 6 หลัก'); return; }
-
-    setLoading('mfa-verify-submit', true, 'ยืนยัน', 'กำลังยืนยัน...');
-    try {
-      await Auth.verifyMfaCode(code);
-    } catch (err) {
-      showError('mfa-verify-error', err.message || 'รหัส MFA ไม่ถูกต้อง');
-    } finally {
-      setLoading('mfa-verify-submit', false, 'ยืนยัน', 'กำลังยืนยัน...');
-    }
-  }
-
   // --- Init ---
   function init() {
     document.getElementById('login-form')?.addEventListener('submit', handleLogin);
     document.getElementById('change-password-form')?.addEventListener('submit', handleChangePassword);
-    document.getElementById('mfa-setup-form')?.addEventListener('submit', handleMfaSetup);
-    document.getElementById('mfa-verify-form')?.addEventListener('submit', handleMfaVerify);
+    initPasswordToggle('toggle-login-password', 'login-password');
   }
 
   return { render, init };

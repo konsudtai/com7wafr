@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: WA Review Tool - Auth (Cognito User Pool + MFA)
+Description: WA Review Tool - Auth (Cognito User Pool)
 Resources:
   UserPool:
     Type: AWS::Cognito::UserPool
@@ -7,8 +7,7 @@ Resources:
       UserPoolName: wa-review-user-pool
       AutoVerifiedAttributes: [email]
       UsernameAttributes: [email]
-      MfaConfiguration: 'ON'
-      EnabledMfas: [SOFTWARE_TOKEN_MFA]
+      MfaConfiguration: 'OFF'
       Policies:
         PasswordPolicy:
           MinimumLength: 8
