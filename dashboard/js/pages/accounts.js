@@ -4,18 +4,9 @@
    generation, Edit/Delete, Verify
    ============================================ */
 
-// NOTE: Mock data below is for DEMO MODE only.
-// In production, all data is fetched from the backend API via ApiClient.
-
 const AccountsPage = (() => {
-  // --- Mock Data ---
-  const accounts = [
-    { id: '111122223333', alias: 'Production', roleArn: 'arn:aws:iam::111122223333:role/WAReviewReadOnly', status: 'Active', lastVerified: '2024-12-15 10:30', critical: 2, high: 5, medium: 10, low: 8 },
-    { id: '444455556666', alias: 'Staging', roleArn: 'arn:aws:iam::444455556666:role/WAReviewReadOnly', status: 'Active', lastVerified: '2024-12-14 08:15', critical: 1, high: 4, medium: 8, low: 6 },
-    { id: '777788889999', alias: 'Development', roleArn: 'arn:aws:iam::777788889999:role/WAReviewReadOnly', status: 'Active', lastVerified: '2024-12-13 14:00', critical: 0, high: 3, medium: 7, low: 4 },
-  ];
+  let accounts = [];
 
-  // Platform account ID (the account running this tool)
   const PLATFORM_ACCOUNT_ID = '000011112222';
   const ROLE_NAME = 'WAReviewReadOnly';
 
@@ -33,8 +24,6 @@ const AccountsPage = (() => {
 # Role Name      : ${ROLE_NAME}
 #
 # Run this script in AWS CloudShell of the TARGET account
-# (${targetAccountId}) to create the read-only IAM role
-# that allows the WA Review platform to scan resources.
 # ============================================================
 set -e
 
@@ -50,26 +39,17 @@ echo " Role Name       : $ROLE_NAME"
 echo "============================================================"
 echo ""
 
-# --- Step 1: Create Trust Policy ---
-echo "[1/4] Creating trust policy..."
-
 TRUST_POLICY=$(cat <<EOF
 {
   "Version": "2012-10-17",
   "Statement": [
     {
       "Effect": "Allow",
-      "Principal": {
-        "AWS": "arn:aws:iam::$PLATFORM_ACCOUNT:root"
-      },
+      "Principal": { "AWS": "arn:aws:iam::$PLATFORM_ACCOUNT:root" },
       "Action": "sts:AssumeRole",
       "Condition": {
-        "StringEquals": {
-          "sts:ExternalId": "wa-review-$TARGET_ACCOUNT"
-        },
-        "ArnLike": {
-          "aws:PrincipalArn": "arn:aws:iam::$PLATFORM_ACCOUNT:role/wa-review-*"
-        }
+        "StringEquals": { "sts:ExternalId": "wa-review-$TARGET_ACCOUNT" },
+        "ArnLike": { "aws:PrincipalArn": "arn:aws:iam::$PLATFORM_ACCOUNT:role/wa-review-*" }
       }
     }
   ]
@@ -77,218 +57,51 @@ TRUST_POLICY=$(cat <<EOF
 EOF
 )
 
-# --- Step 2: Create IAM Role ---
-echo "[2/4] Creating IAM role: $ROLE_NAME ..."
+echo "[1/4] Creating trust policy..."
 
+echo "[2/4] Creating IAM role: $ROLE_NAME ..."
 if aws iam get-role --role-name "$ROLE_NAME" > /dev/null 2>&1; then
   echo "  Role already exists. Updating trust policy..."
-  aws iam update-assume-role-policy \\
-    --role-name "$ROLE_NAME" \\
-    --policy-document "$TRUST_POLICY"
+  aws iam update-assume-role-policy --role-name "$ROLE_NAME" --policy-document "$TRUST_POLICY"
 else
-  aws iam create-role \\
-    --role-name "$ROLE_NAME" \\
-    --assume-role-policy-document "$TRUST_POLICY" \\
-    --description "Read-only role for AWS Well-Architected Review Tool" \\
-    --max-session-duration 3600 \\
-    --tags Key=ManagedBy,Value=WAReviewTool Key=Purpose,Value=SecurityAudit
+  aws iam create-role --role-name "$ROLE_NAME" --assume-role-policy-document "$TRUST_POLICY" --description "Read-only role for AWS Well-Architected Review Tool" --max-session-duration 3600 --tags Key=ManagedBy,Value=WAReviewTool Key=Purpose,Value=SecurityAudit
 fi
-
 echo "  Done."
 
-# --- Step 3: Attach Targeted Read-Only Policies ---
 echo "[3/4] Attaching read-only policies..."
-
-# SECURITY: Use SecurityAudit (targeted) instead of ReadOnlyAccess (overly broad).
-# A custom inline policy below grants only the specific describe/list/get permissions
-# needed for the 10 services we scan.
-POLICIES=(
-  "arn:aws:iam::aws:policy/SecurityAudit"
-)
-
-for POLICY_ARN in "\${POLICIES[@]}"; do
-  echo "  Attaching: $POLICY_ARN"
-  aws iam attach-role-policy \\
-    --role-name "$ROLE_NAME" \\
-    --policy-arn "$POLICY_ARN" 2>/dev/null || true
-done
-
-# Detach ReadOnlyAccess if previously attached (too broad)
-aws iam detach-role-policy \\
-  --role-name "$ROLE_NAME" \\
-  --policy-arn "arn:aws:iam::aws:policy/ReadOnlyAccess" 2>/dev/null || true
-
+aws iam attach-role-policy --role-name "$ROLE_NAME" --policy-arn "arn:aws:iam::aws:policy/SecurityAudit" 2>/dev/null || true
+aws iam detach-role-policy --role-name "$ROLE_NAME" --policy-arn "arn:aws:iam::aws:policy/ReadOnlyAccess" 2>/dev/null || true
 echo "  Done."
 
-# --- Step 4: Create Inline Policy for scanned service permissions ---
-echo "[4/4] Adding inline policy for scanned service and WA Tool access..."
-
+echo "[4/4] Adding inline policy..."
 INLINE_POLICY=$(cat <<EOF
 {
   "Version": "2012-10-17",
   "Statement": [
-    {
-      "Sid": "EC2ReadOnly",
-      "Effect": "Allow",
-      "Action": [
-        "ec2:Describe*",
-        "ec2:Get*"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "S3ReadOnly",
-      "Effect": "Allow",
-      "Action": [
-        "s3:GetBucket*",
-        "s3:GetEncryptionConfiguration",
-        "s3:GetLifecycleConfiguration",
-        "s3:GetObject",
-        "s3:ListBucket",
-        "s3:ListAllMyBuckets"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "RDSReadOnly",
-      "Effect": "Allow",
-      "Action": [
-        "rds:Describe*",
-        "rds:List*"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "IAMReadOnly",
-      "Effect": "Allow",
-      "Action": [
-        "iam:Get*",
-        "iam:List*",
-        "iam:GenerateCredentialReport",
-        "iam:GetCredentialReport"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "LambdaReadOnly",
-      "Effect": "Allow",
-      "Action": [
-        "lambda:GetFunction*",
-        "lambda:GetPolicy",
-        "lambda:List*"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "DynamoDBReadOnly",
-      "Effect": "Allow",
-      "Action": [
-        "dynamodb:Describe*",
-        "dynamodb:List*"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "ELBReadOnly",
-      "Effect": "Allow",
-      "Action": [
-        "elasticloadbalancing:Describe*"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "CloudFrontReadOnly",
-      "Effect": "Allow",
-      "Action": [
-        "cloudfront:Get*",
-        "cloudfront:List*"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "ECSReadOnly",
-      "Effect": "Allow",
-      "Action": [
-        "ecs:Describe*",
-        "ecs:List*"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "EKSReadOnly",
-      "Effect": "Allow",
-      "Action": [
-        "eks:Describe*",
-        "eks:List*"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "WellArchitectedAndCostReadOnly",
-      "Effect": "Allow",
-      "Action": [
-        "wellarchitected:Get*",
-        "wellarchitected:List*",
-        "support:DescribeTrustedAdvisorChecks",
-        "support:DescribeTrustedAdvisorCheckResult",
-        "ce:GetCostAndUsage",
-        "ce:GetReservationPurchaseRecommendation",
-        "ce:GetSavingsPlansPurchaseRecommendation",
-        "ce:GetRightsizingRecommendation",
-        "ce:GetCostForecast",
-        "cost-optimization-hub:ListRecommendations",
-        "cost-optimization-hub:GetRecommendation",
-        "compute-optimizer:GetEC2InstanceRecommendations",
-        "compute-optimizer:GetAutoScalingGroupRecommendations",
-        "compute-optimizer:GetLambdaFunctionRecommendations",
-        "compute-optimizer:GetEBSVolumeRecommendations"
-      ],
-      "Resource": "*"
-    }
+    { "Sid": "EC2ReadOnly", "Effect": "Allow", "Action": ["ec2:Describe*","ec2:Get*"], "Resource": "*" },
+    { "Sid": "S3ReadOnly", "Effect": "Allow", "Action": ["s3:GetBucket*","s3:GetEncryptionConfiguration","s3:GetLifecycleConfiguration","s3:GetObject","s3:ListBucket","s3:ListAllMyBuckets"], "Resource": "*" },
+    { "Sid": "RDSReadOnly", "Effect": "Allow", "Action": ["rds:Describe*","rds:List*"], "Resource": "*" },
+    { "Sid": "IAMReadOnly", "Effect": "Allow", "Action": ["iam:Get*","iam:List*","iam:GenerateCredentialReport","iam:GetCredentialReport"], "Resource": "*" },
+    { "Sid": "LambdaReadOnly", "Effect": "Allow", "Action": ["lambda:GetFunction*","lambda:GetPolicy","lambda:List*"], "Resource": "*" },
+    { "Sid": "DynamoDBReadOnly", "Effect": "Allow", "Action": ["dynamodb:Describe*","dynamodb:List*"], "Resource": "*" },
+    { "Sid": "ELBReadOnly", "Effect": "Allow", "Action": ["elasticloadbalancing:Describe*"], "Resource": "*" },
+    { "Sid": "CloudFrontReadOnly", "Effect": "Allow", "Action": ["cloudfront:Get*","cloudfront:List*"], "Resource": "*" },
+    { "Sid": "ECSReadOnly", "Effect": "Allow", "Action": ["ecs:Describe*","ecs:List*"], "Resource": "*" },
+    { "Sid": "EKSReadOnly", "Effect": "Allow", "Action": ["eks:Describe*","eks:List*"], "Resource": "*" },
+    { "Sid": "WellArchitectedAndCostReadOnly", "Effect": "Allow", "Action": ["wellarchitected:Get*","wellarchitected:List*","support:DescribeTrustedAdvisorChecks","support:DescribeTrustedAdvisorCheckResult","ce:GetCostAndUsage","ce:GetReservationPurchaseRecommendation","ce:GetSavingsPlansPurchaseRecommendation","ce:GetRightsizingRecommendation","ce:GetCostForecast","cost-optimization-hub:ListRecommendations","cost-optimization-hub:GetRecommendation","compute-optimizer:GetEC2InstanceRecommendations","compute-optimizer:GetAutoScalingGroupRecommendations","compute-optimizer:GetLambdaFunctionRecommendations","compute-optimizer:GetEBSVolumeRecommendations"], "Resource": "*" }
   ]
 }
 EOF
 )
-
-aws iam put-role-policy \\
-  --role-name "$ROLE_NAME" \\
-  --policy-name "WAReviewAdditionalReadOnly" \\
-  --policy-document "$INLINE_POLICY"
-
+aws iam put-role-policy --role-name "$ROLE_NAME" --policy-name "WAReviewAdditionalReadOnly" --policy-document "$INLINE_POLICY"
 echo "  Done."
 
-# --- Summary ---
 ROLE_ARN="arn:aws:iam::$TARGET_ACCOUNT:role/$ROLE_NAME"
-
 echo ""
 echo "============================================================"
 echo " Setup Complete"
-echo "============================================================"
-echo ""
 echo " Role ARN: $ROLE_ARN"
-echo ""
-echo " Attached Policies:"
-echo "   - SecurityAudit (AWS Managed)"
-echo "   - WAReviewAdditionalReadOnly (Inline)"
-echo "     - EC2, S3, RDS, IAM, Lambda, DynamoDB, ELB,"
-echo "       CloudFront, ECS, EKS read-only access"
-echo "     - Well-Architected Tool read access"
-echo "     - Cost Explorer recommendations"
-echo "     - Cost Optimization Hub"
-echo "     - Compute Optimizer"
-echo "     - Trusted Advisor checks"
-echo ""
-echo " Trust Policy:"
-echo "   - Trusted Principal: arn:aws:iam::$PLATFORM_ACCOUNT:root"
-echo "   - Condition: aws:PrincipalArn must match arn:aws:iam::$PLATFORM_ACCOUNT:role/wa-review-*"
-echo "   - External ID: wa-review-$TARGET_ACCOUNT"
-echo ""
-echo " Next Steps:"
-echo "   1. Go back to the WA Review Dashboard"
-echo "   2. Enter the following in the Add Account form:"
-echo "      Account ID : $TARGET_ACCOUNT"
-echo "      Role ARN   : $ROLE_ARN"
-echo "      Alias      : ${alias}"
+echo " External ID: wa-review-$TARGET_ACCOUNT"
 echo "============================================================"
 `;
   }
@@ -304,46 +117,48 @@ echo "============================================================"
         ${isAdmin() ? '<button id="btn-add-account" class="btn btn-primary">+ Add Account</button>' : ''}
       </div>
 
-      <h3 style="margin-bottom:12px;">Account Summary</h3>
-      <div class="card-grid mb-24">
-        ${accounts.map(renderSummaryCard).join('')}
+      <div id="accounts-loading" class="card mb-24" style="text-align:center; padding:48px;">
+        <p class="text-secondary">กำลังโหลดข้อมูล...</p>
       </div>
 
-      <div class="card">
-        <div class="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Account ID</th>
-                <th>Alias</th>
-                <th>Role ARN</th>
-                <th>Status</th>
-                <th>Last Verified</th>
-                ${isAdmin() ? '<th>Actions</th>' : ''}
-              </tr>
-            </thead>
-            <tbody id="accounts-tbody">
-              ${accounts.map(renderRow).join('')}
-            </tbody>
-          </table>
+      <div id="accounts-empty" class="card mb-24 hidden" style="text-align:center; padding:48px;">
+        <p class="text-secondary">ยังไม่มี account ที่ลงทะเบียน กรุณาเพิ่ม account เพื่อเริ่มการสแกน</p>
+      </div>
+
+      <div id="accounts-content" class="hidden">
+        <h3 style="margin-bottom:12px;">Account Summary</h3>
+        <div id="accounts-cards" class="card-grid mb-24"></div>
+
+        <div class="card">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Account ID</th><th>Alias</th><th>Role ARN</th><th>Status</th><th>Last Verified</th>
+                  ${isAdmin() ? '<th>Actions</th>' : ''}
+                </tr>
+              </thead>
+              <tbody id="accounts-tbody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     `;
   }
 
   function renderSummaryCard(acct) {
-    const total = acct.critical + acct.high + acct.medium + acct.low;
+    const total = (acct.critical||0) + (acct.high||0) + (acct.medium||0) + (acct.low||0);
     return `
       <div class="card">
         <div class="flex-between mb-16">
-          <div><h4>${acct.alias}</h4><span class="text-secondary" style="font-size:0.82rem;">${acct.id}</span></div>
-          <span class="badge ${statusBadgeClass(acct.status)}">${acct.status}</span>
+          <div><h4>${acct.alias || acct.id}</h4><span class="text-secondary" style="font-size:0.82rem;">${acct.id}</span></div>
+          <span class="badge ${statusBadgeClass(acct.status)}">${acct.status || 'Unknown'}</span>
         </div>
         <div class="flex gap-8" style="flex-wrap:wrap;">
-          <span class="badge badge-critical">${acct.critical} Critical</span>
-          <span class="badge badge-high">${acct.high} High</span>
-          <span class="badge badge-medium">${acct.medium} Medium</span>
-          <span class="badge badge-low">${acct.low} Low</span>
+          <span class="badge badge-critical">${acct.critical||0} Critical</span>
+          <span class="badge badge-high">${acct.high||0} High</span>
+          <span class="badge badge-medium">${acct.medium||0} Medium</span>
+          <span class="badge badge-low">${acct.low||0} Low</span>
         </div>
         <p class="text-secondary mt-8" style="font-size:0.82rem;">Total: ${total} findings</p>
       </div>
@@ -359,17 +174,50 @@ echo "============================================================"
     </div></td>` : '';
     return `<tr>
       <td style="font-family:var(--font-mono); font-size:0.88rem;">${acct.id}</td>
-      <td>${acct.alias}</td>
-      <td style="font-family:var(--font-mono); font-size:0.82rem; word-break:break-all;">${acct.roleArn}</td>
-      <td><span class="badge ${statusBadgeClass(acct.status)}">${acct.status}</span></td>
-      <td>${acct.lastVerified}</td>
+      <td>${acct.alias || ''}</td>
+      <td style="font-family:var(--font-mono); font-size:0.82rem; word-break:break-all;">${acct.roleArn || acct.role_arn || ''}</td>
+      <td><span class="badge ${statusBadgeClass(acct.status)}">${acct.status || 'Unknown'}</span></td>
+      <td>${acct.lastVerified || acct.last_verified || '—'}</td>
       ${actions}
     </tr>`;
   }
 
+  function renderTable() {
+    const cards = document.getElementById('accounts-cards');
+    const tbody = document.getElementById('accounts-tbody');
+    if (cards) cards.innerHTML = accounts.map(renderSummaryCard).join('');
+    if (tbody) tbody.innerHTML = accounts.map(renderRow).join('');
+  }
+
   // --- Init ---
-  function init() {
+  async function init() {
     document.getElementById('btn-add-account')?.addEventListener('click', showAddModal);
+    try {
+      const data = await ApiClient.get('/accounts');
+      accounts = (data && (data.accounts || data)) || [];
+      if (!Array.isArray(accounts)) accounts = [];
+      if (accounts.length === 0) { showEmpty(); return; }
+      showContent();
+      renderTable();
+      bindTableEvents();
+    } catch (err) {
+      showEmpty();
+    }
+  }
+
+  function showEmpty() {
+    document.getElementById('accounts-loading')?.classList.add('hidden');
+    document.getElementById('accounts-empty')?.classList.remove('hidden');
+    document.getElementById('accounts-content')?.classList.add('hidden');
+  }
+
+  function showContent() {
+    document.getElementById('accounts-loading')?.classList.add('hidden');
+    document.getElementById('accounts-empty')?.classList.add('hidden');
+    document.getElementById('accounts-content')?.classList.remove('hidden');
+  }
+
+  function bindTableEvents() {
     document.getElementById('accounts-tbody')?.addEventListener('click', (e) => {
       const btn = e.target.closest('button');
       if (!btn) return;
@@ -383,169 +231,117 @@ echo "============================================================"
     });
   }
 
-  // --- Add Account Modal (2-step: generate script then register) ---
+  function escapeHtml(str) { return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // --- Modals (Add, Script, Edit, Delete, Verify) ---
   function showAddModal() {
     const body = `
       <div id="add-step-1">
-        <p class="text-secondary mb-16" style="font-size:0.88rem;">
-          Step 1: กรอก Account ID และ Alias เพื่อสร้าง script สำหรับ setup IAM role ใน target account
-        </p>
+        <p class="text-secondary mb-16" style="font-size:0.88rem;">Step 1: กรอก Account ID และ Alias เพื่อสร้าง script สำหรับ setup IAM role</p>
         <form id="add-step1-form">
-          <div class="form-group">
-            <label for="add-account-id">Target Account ID</label>
-            <input type="text" id="add-account-id" placeholder="123456789012" required pattern="\\d{12}" title="12-digit AWS Account ID">
-          </div>
-          <div class="form-group">
-            <label for="add-alias">Alias</label>
-            <input type="text" id="add-alias" placeholder="Production" required>
-          </div>
+          <div class="form-group"><label for="add-account-id">Target Account ID</label><input type="text" id="add-account-id" placeholder="123456789012" required pattern="\\d{12}" title="12-digit AWS Account ID"></div>
+          <div class="form-group"><label for="add-alias">Alias</label><input type="text" id="add-alias" placeholder="Production" required></div>
           <button type="submit" class="btn btn-primary btn-block mt-16">Generate Setup Script</button>
         </form>
       </div>
-
       <div id="add-step-2" class="hidden">
-        <p class="text-secondary mb-16" style="font-size:0.88rem;">
-          Step 2: Copy script ด้านล่างแล้วรันใน AWS CloudShell ของ target account จากนั้นกด "Register Account"
-        </p>
-
+        <p class="text-secondary mb-16" style="font-size:0.88rem;">Step 2: Copy script แล้วรันใน AWS CloudShell ของ target account จากนั้นกด "Register Account"</p>
         <div style="margin-bottom:12px;">
-          <div class="flex-between" style="margin-bottom:4px;">
-            <label style="font-size:0.82rem; font-weight:500; color:var(--text-secondary);">CloudShell Script</label>
-            <button id="btn-copy-script" class="btn btn-secondary btn-sm">Copy Script</button>
-          </div>
+          <div class="flex-between" style="margin-bottom:4px;"><label style="font-size:0.82rem; font-weight:500; color:var(--text-secondary);">CloudShell Script</label><button id="btn-copy-script" class="btn btn-secondary btn-sm">Copy Script</button></div>
           <div id="script-output" style="background:var(--color-near-black); color:#e8e6dc; padding:16px; border-radius:var(--radius-md); font-family:var(--font-mono); font-size:0.75rem; line-height:1.5; max-height:320px; overflow-y:auto; white-space:pre; tab-size:2;"></div>
         </div>
-
-        <div style="margin-bottom:12px;">
-          <label style="font-size:0.82rem; font-weight:500; color:var(--text-secondary);">Script สร้าง IAM Role ที่มีสิทธิ์ดังนี้:</label>
-          <ul style="font-size:0.82rem; color:var(--text-secondary); padding-left:20px; line-height:1.8; margin-top:4px;">
-            <li><strong>SecurityAudit</strong> — ตรวจสอบ security configurations</li>
-            <li><strong>Scanned Services</strong> — EC2, S3, RDS, IAM, Lambda, DynamoDB, ELB, CloudFront, ECS, EKS (read-only)</li>
-            <li><strong>Well-Architected Tool</strong> — อ่านข้อมูล workloads และ reviews</li>
-            <li><strong>Cost Explorer</strong> — RI/Savings Plan recommendations, cost data</li>
-            <li><strong>Cost Optimization Hub</strong> — optimization recommendations</li>
-            <li><strong>Compute Optimizer</strong> — right-sizing recommendations</li>
-            <li><strong>Trusted Advisor</strong> — best practice checks</li>
-          </ul>
-        </div>
-
-        <div class="alert alert-warning" style="font-size:0.82rem; margin-bottom:12px;">
-          Trust policy ใช้ External ID: <code style="font-size:0.82rem;">wa-review-<span id="script-ext-id"></span></code> เพื่อป้องกัน confused deputy attack
-        </div>
-
-        <div id="add-step2-info" style="margin-bottom:12px;">
-          <div class="form-group">
-            <label>Role ARN (auto-filled)</label>
-            <input type="text" id="add-role-arn" readonly style="background:var(--bg-page);">
-          </div>
-        </div>
-
-        <div class="flex gap-8">
-          <button id="btn-back-step1" class="btn btn-secondary" style="flex:1;">Back</button>
-          <button id="btn-register" class="btn btn-primary" style="flex:1;">Register Account</button>
-        </div>
+        <div class="alert alert-warning" style="font-size:0.82rem; margin-bottom:12px;">Trust policy ใช้ External ID: <code style="font-size:0.82rem;">wa-review-<span id="script-ext-id"></span></code></div>
+        <div id="add-step2-info" style="margin-bottom:12px;"><div class="form-group"><label>Role ARN (auto-filled)</label><input type="text" id="add-role-arn" readonly style="background:var(--bg-page);"></div></div>
+        <div class="flex gap-8"><button id="btn-back-step1" class="btn btn-secondary" style="flex:1;">Back</button><button id="btn-register" class="btn btn-primary" style="flex:1;">Register Account</button></div>
       </div>
     `;
-
     App.showModal('Add Account', body);
 
-    // Step 1 form submit
     document.getElementById('add-step1-form')?.addEventListener('submit', (e) => {
       e.preventDefault();
       const accountId = document.getElementById('add-account-id').value.trim();
       const alias = document.getElementById('add-alias').value.trim();
       if (!accountId || !alias) return;
-
-      const script = generateScript(accountId, alias);
-      const roleArn = 'arn:aws:iam::' + accountId + ':role/' + ROLE_NAME;
-
-      document.getElementById('script-output').textContent = script;
-      document.getElementById('add-role-arn').value = roleArn;
+      document.getElementById('script-output').textContent = generateScript(accountId, alias);
+      document.getElementById('add-role-arn').value = 'arn:aws:iam::' + accountId + ':role/' + ROLE_NAME;
       document.getElementById('script-ext-id').textContent = accountId;
       document.getElementById('add-step-1').classList.add('hidden');
       document.getElementById('add-step-2').classList.remove('hidden');
     });
-
-    // Copy script
     document.getElementById('btn-copy-script')?.addEventListener('click', () => {
-      const script = document.getElementById('script-output').textContent;
-      navigator.clipboard.writeText(script).then(() => {
-        const btn = document.getElementById('btn-copy-script');
-        btn.textContent = 'Copied';
-        setTimeout(() => { btn.textContent = 'Copy Script'; }, 2000);
+      navigator.clipboard.writeText(document.getElementById('script-output').textContent).then(() => {
+        const btn = document.getElementById('btn-copy-script'); btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = 'Copy Script'; }, 2000);
       });
     });
-
-    // Back to step 1
     document.getElementById('btn-back-step1')?.addEventListener('click', () => {
       document.getElementById('add-step-1').classList.remove('hidden');
       document.getElementById('add-step-2').classList.add('hidden');
     });
-
-    // Register account
-    document.getElementById('btn-register')?.addEventListener('click', () => {
-      App.hideModal();
+    document.getElementById('btn-register')?.addEventListener('click', async () => {
+      const accountId = document.getElementById('add-account-id').value.trim();
+      const alias = document.getElementById('add-alias').value.trim();
+      const roleArn = document.getElementById('add-role-arn').value;
+      try {
+        await ApiClient.post('/accounts', { id: accountId, alias, roleArn });
+        App.hideModal();
+        init();
+      } catch (err) {
+        alert(err.message || 'ไม่สามารถลงทะเบียน account ได้');
+      }
     });
   }
 
-  // --- Show Script for existing account ---
   function showScriptModal(accountId, alias) {
     const script = generateScript(accountId, alias);
     const body = `
-      <p class="text-secondary mb-16" style="font-size:0.88rem;">
-        CloudShell script สำหรับ setup/update IAM role ใน account ${accountId} (${alias})
-      </p>
-      <div class="flex-between" style="margin-bottom:4px;">
-        <label style="font-size:0.82rem; font-weight:500; color:var(--text-secondary);">Script</label>
-        <button id="btn-copy-existing" class="btn btn-secondary btn-sm">Copy Script</button>
-      </div>
+      <p class="text-secondary mb-16" style="font-size:0.88rem;">CloudShell script สำหรับ account ${accountId} (${alias})</p>
+      <div class="flex-between" style="margin-bottom:4px;"><label style="font-size:0.82rem; font-weight:500; color:var(--text-secondary);">Script</label><button id="btn-copy-existing" class="btn btn-secondary btn-sm">Copy Script</button></div>
       <div style="background:var(--color-near-black); color:#e8e6dc; padding:16px; border-radius:var(--radius-md); font-family:var(--font-mono); font-size:0.75rem; line-height:1.5; max-height:400px; overflow-y:auto; white-space:pre; tab-size:2;">${escapeHtml(script)}</div>
     `;
     App.showModal('Setup Script — ' + alias, body);
     document.getElementById('btn-copy-existing')?.addEventListener('click', () => {
-      navigator.clipboard.writeText(script).then(() => {
-        const btn = document.getElementById('btn-copy-existing');
-        btn.textContent = 'Copied';
-        setTimeout(() => { btn.textContent = 'Copy Script'; }, 2000);
-      });
+      navigator.clipboard.writeText(script).then(() => { const btn = document.getElementById('btn-copy-existing'); btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = 'Copy Script'; }, 2000); });
     });
   }
 
-  function escapeHtml(str) {
-    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }
-
-  // --- Edit / Delete / Verify (unchanged) ---
   function showEditModal(acct) {
     const body = `
       <form id="edit-account-form">
         <div class="form-group"><label>Account ID</label><input type="text" value="${acct.id}" disabled></div>
-        <div class="form-group"><label for="edit-role-arn">Role ARN</label><input type="text" id="edit-role-arn" value="${acct.roleArn}" required></div>
-        <div class="form-group"><label for="edit-alias">Alias</label><input type="text" id="edit-alias" value="${acct.alias}" required></div>
+        <div class="form-group"><label for="edit-role-arn">Role ARN</label><input type="text" id="edit-role-arn" value="${acct.roleArn || acct.role_arn || ''}" required></div>
+        <div class="form-group"><label for="edit-alias">Alias</label><input type="text" id="edit-alias" value="${acct.alias || ''}" required></div>
         <button type="submit" class="btn btn-primary btn-block mt-16">Save Changes</button>
       </form>
     `;
     App.showModal('Edit Account', body);
-    document.getElementById('edit-account-form')?.addEventListener('submit', (e) => { e.preventDefault(); App.hideModal(); });
+    document.getElementById('edit-account-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        await ApiClient.put('/accounts/' + acct.id, { alias: document.getElementById('edit-alias').value, roleArn: document.getElementById('edit-role-arn').value });
+        App.hideModal();
+        init();
+      } catch (err) { alert(err.message || 'ไม่สามารถบันทึกได้'); }
+    });
   }
 
   function showDeleteModal(acct) {
     const body = `
       <p>คุณต้องการลบ account <strong>${acct.alias}</strong> (${acct.id}) หรือไม่?</p>
       <p class="text-secondary mt-8" style="font-size:0.88rem;">การดำเนินการนี้ไม่สามารถย้อนกลับได้</p>
-      <div class="flex gap-8 mt-16">
-        <button id="confirm-delete" class="btn btn-danger" style="flex:1;">Delete</button>
-        <button id="cancel-delete" class="btn btn-secondary" style="flex:1;">Cancel</button>
-      </div>
+      <div class="flex gap-8 mt-16"><button id="confirm-delete" class="btn btn-danger" style="flex:1;">Delete</button><button id="cancel-delete" class="btn btn-secondary" style="flex:1;">Cancel</button></div>
     `;
     App.showModal('Delete Account', body);
-    document.getElementById('confirm-delete')?.addEventListener('click', () => App.hideModal());
+    document.getElementById('confirm-delete')?.addEventListener('click', async () => {
+      try { await ApiClient.del('/accounts/' + acct.id); App.hideModal(); init(); } catch (err) { alert(err.message || 'ไม่สามารถลบได้'); }
+    });
     document.getElementById('cancel-delete')?.addEventListener('click', () => App.hideModal());
   }
 
   function handleVerify(acct) {
     const btn = document.querySelector(`.btn-verify[data-id="${acct.id}"]`);
-    if (btn) { btn.disabled = true; btn.textContent = 'Verifying...'; setTimeout(() => { btn.disabled = false; btn.textContent = 'Verify'; }, 1500); }
+    if (!btn) return;
+    btn.disabled = true; btn.textContent = 'Verifying...';
+    ApiClient.post('/accounts/' + acct.id + '/verify').then(() => { btn.disabled = false; btn.textContent = 'Verify'; init(); }).catch(() => { btn.disabled = false; btn.textContent = 'Verify'; });
   }
 
   return { render, init };

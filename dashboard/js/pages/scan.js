@@ -4,20 +4,11 @@
    indicator, current service/region display
    ============================================ */
 
-// NOTE: Mock data below is for DEMO MODE only.
-// In production, scan operations are performed via the backend API.
-
 const ScanPage = (() => {
-  let scanInterval = null;
+  let pollInterval = null;
 
-  const services = ['EC2', 'S3', 'RDS', 'IAM', 'Lambda', 'DynamoDB', 'ELB', 'CloudFront', 'ECS', 'EKS'];
-  const regions = ['us-east-1', 'ap-southeast-1', 'eu-west-1'];
+  function isAdmin() { return App.state.role === 'Admin'; }
 
-  function isAdmin() {
-    return App.state.role === 'Admin';
-  }
-
-  // --- Render ---
   function render() {
     return `
       <div class="page-header">
@@ -52,80 +43,91 @@ const ScanPage = (() => {
         </div>
       </div>
 
-      <div class="card">
+      <div id="scan-config" class="card">
         <h3 style="margin-bottom:12px;">Scan Configuration</h3>
-        <div class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
-          <div>
-            <p class="text-secondary" style="font-size:0.82rem;">Services</p>
-            <p>${services.join(', ')}</p>
-          </div>
-          <div>
-            <p class="text-secondary" style="font-size:0.82rem;">Regions</p>
-            <p>${regions.join(', ')}</p>
-          </div>
-          <div>
-            <p class="text-secondary" style="font-size:0.82rem;">Accounts</p>
-            <p>3 accounts configured</p>
-          </div>
-        </div>
+        <p class="text-secondary">กำลังโหลด...</p>
       </div>
     `;
   }
 
-  // --- Init ---
-  function init() {
+  async function init() {
     document.getElementById('btn-run-scan')?.addEventListener('click', startScan);
+    loadConfig();
   }
 
-  function startScan() {
+  async function loadConfig() {
+    try {
+      const data = await ApiClient.get('/accounts');
+      const accounts = (data && (data.accounts || data)) || [];
+      const count = Array.isArray(accounts) ? accounts.length : 0;
+      const configEl = document.getElementById('scan-config');
+      if (configEl) {
+        configEl.innerHTML = `
+          <h3 style="margin-bottom:12px;">Scan Configuration</h3>
+          <div class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+            <div><p class="text-secondary" style="font-size:0.82rem;">Services</p><p>EC2, S3, RDS, IAM, Lambda, DynamoDB, ELB, CloudFront, ECS, EKS</p></div>
+            <div><p class="text-secondary" style="font-size:0.82rem;">Accounts</p><p>${count} account${count !== 1 ? 's' : ''} configured</p></div>
+          </div>
+        `;
+      }
+    } catch (err) { /* ignore */ }
+  }
+
+  async function startScan() {
     const btn = document.getElementById('btn-run-scan');
     if (!btn || btn.disabled) return;
-
     btn.disabled = true;
     btn.textContent = 'Scanning...';
-
-    let step = 0;
-    const totalSteps = 10;
-
     updateStatus('IN_PROGRESS');
     updateProgress(0);
 
-    scanInterval = setInterval(() => {
-      step++;
-      const pct = Math.round((step / totalSteps) * 100);
-      const svcIdx = step % services.length;
-      const regIdx = step % regions.length;
-
-      updateProgress(pct);
-      updateCurrent(`${services[svcIdx]} — ${regions[regIdx]}`);
-
-      if (step >= totalSteps) {
-        clearInterval(scanInterval);
-        scanInterval = null;
-        updateStatus('COMPLETED');
-        updateCurrent('—');
-        btn.disabled = false;
-        btn.textContent = 'Run Check';
+    try {
+      const result = await ApiClient.post('/scans');
+      const scanId = result && (result.scanId || result.scan_id);
+      if (scanId) {
+        pollProgress(scanId);
       }
-    }, 800);
+    } catch (err) {
+      updateStatus('FAILED');
+      btn.disabled = false;
+      btn.textContent = 'Run Check';
+    }
   }
 
-  function updateStatus(status) {
-    const el = document.getElementById('scan-status');
-    if (el) el.textContent = status;
+  function pollProgress(scanId) {
+    if (pollInterval) clearInterval(pollInterval);
+    pollInterval = setInterval(async () => {
+      try {
+        const data = await ApiClient.get('/scans/' + scanId + '/status');
+        const status = data && data.status;
+        const pct = Math.round(data && data.progress_percentage || 0);
+        updateStatus(status || 'IN_PROGRESS');
+        updateProgress(pct);
+        updateCurrent(data && data.current_service ? `${data.current_service} — ${data.current_region || ''}` : '—');
+
+        if (status === 'COMPLETED' || status === 'FAILED') {
+          clearInterval(pollInterval);
+          pollInterval = null;
+          const btn = document.getElementById('btn-run-scan');
+          if (btn) { btn.disabled = false; btn.textContent = 'Run Check'; }
+        }
+      } catch (err) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+        const btn = document.getElementById('btn-run-scan');
+        if (btn) { btn.disabled = false; btn.textContent = 'Run Check'; }
+      }
+    }, 2000);
   }
 
+  function updateStatus(status) { const el = document.getElementById('scan-status'); if (el) el.textContent = status; }
   function updateProgress(pct) {
     const fill = document.getElementById('scan-progress-fill');
     const text = document.getElementById('scan-progress-text');
     if (fill) fill.style.width = pct + '%';
     if (text) text.textContent = pct + '%';
   }
-
-  function updateCurrent(text) {
-    const el = document.getElementById('scan-current');
-    if (el) el.textContent = text;
-  }
+  function updateCurrent(text) { const el = document.getElementById('scan-current'); if (el) el.textContent = text; }
 
   return { render, init };
 })();

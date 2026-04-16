@@ -101,38 +101,8 @@ const Auth = (() => {
     });
   }
 
-  // --- Demo Mode ---
-  // Demo users for testing without Cognito deployment
-  const DEMO_USERS = {
-    'admin@demo.com':  { password: 'Admin123!', role: 'Admin' },
-    'viewer@demo.com': { password: 'Viewer123!', role: 'Viewer' },
-  };
-
-  function isDemoMode() {
-    return config.UserPoolId.includes('PLACEHOLDER') || config.ClientId.includes('PLACEHOLDER');
-  }
-
-  function demoLogin(email, password) {
-    return new Promise((resolve, reject) => {
-      const user = DEMO_USERS[email];
-      if (!user || user.password !== password) {
-        reject(new Error(GENERIC_ERROR));
-        return;
-      }
-      if (typeof App !== 'undefined') {
-        App.setAuthenticated(email, user.role);
-      }
-      resolve({ success: true });
-    });
-  }
-
   // --- Login ---
   function login(email, password) {
-    // Use demo mode when Cognito is not configured
-    if (isDemoMode()) {
-      return demoLogin(email, password);
-    }
-
     return new Promise((resolve, reject) => {
       const pool = initPool();
       if (!pool) {
@@ -243,12 +213,6 @@ const Auth = (() => {
 
   // --- Check existing session on page load ---
   function checkSession() {
-    // In demo mode, just render the page (no persistent session)
-    if (isDemoMode()) {
-      if (typeof App !== 'undefined') App.renderPage();
-      return;
-    }
-
     const pool = initPool();
     if (!pool) {
       if (typeof App !== 'undefined') App.renderPage();
@@ -303,7 +267,6 @@ const Auth = (() => {
     checkSession,
     getIdToken,
     isNewPasswordRequired,
-    isDemoMode,
     GENERIC_ERROR,
   };
 })();

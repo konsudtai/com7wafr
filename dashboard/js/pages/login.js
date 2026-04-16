@@ -6,14 +6,6 @@
 const LoginPage = (() => {
 
   function render() {
-    const demoHint = (typeof Auth !== 'undefined' && Auth.isDemoMode && Auth.isDemoMode())
-      ? `<div class="alert alert-success" style="text-align:left; margin-top:16px; font-size:0.82rem;">
-           <strong>Demo Mode</strong> — ใช้ user ตัวอย่างเพื่อทดสอบ:<br>
-           Admin: <code>admin@demo.com</code> / <code>Admin123!</code><br>
-           Viewer: <code>viewer@demo.com</code> / <code>Viewer123!</code>
-         </div>`
-      : '';
-
     return `
       <div class="login-container">
         <div class="login-card">
@@ -38,7 +30,6 @@ const LoginPage = (() => {
               <div id="login-error" class="alert alert-error hidden" role="alert"></div>
               <button type="submit" id="login-submit" class="btn btn-primary btn-block">เข้าสู่ระบบ</button>
             </form>
-            ${demoHint}
           </div>
 
           <!-- Step 2: Change Password (first login) -->
