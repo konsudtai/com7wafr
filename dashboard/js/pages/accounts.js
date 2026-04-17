@@ -7,20 +7,45 @@
 const AccountsPage = (() => {
   let accounts = [];
 
-  const PLATFORM_ACCOUNT_ID = '000011112222';
+  let platformAccountId = '';
   const ROLE_NAME = 'WAReviewReadOnly';
 
-  function statusBadgeClass(s) { return s === 'Active' ? 'badge-low' : 'badge-info'; }
+  function statusBadgeClass(s) {
+    if (s === 'CONNECTED' || s === 'Active') return 'badge-low';
+    if (s === 'FAILED') return 'badge-critical';
+    return 'badge-info';
+  }
+  function statusLabel(s) {
+    if (s === 'CONNECTED') return 'Active';
+    if (s === 'FAILED') return 'Failed';
+    if (s === 'UNKNOWN') return 'Unknown';
+    return s || 'Unknown';
+  }
   function isAdmin() { return App.state.role === 'Admin'; }
 
+  // Normalize backend AccountRecord to a consistent shape for the UI
+  function normalizeAccount(raw) {
+    return {
+      id: raw.accountId || raw.id || '',
+      alias: raw.alias || '',
+      roleArn: raw.roleArn || raw.role_arn || '',
+      status: raw.connectionStatus || raw.status || 'UNKNOWN',
+      lastVerified: raw.lastVerified || raw.last_verified || raw.updatedAt || '—',
+      critical: raw.critical || 0,
+      high: raw.high || 0,
+      medium: raw.medium || 0,
+      low: raw.low || 0,
+    };
+  }
+
   // --- Generate CloudShell Script ---
-  function generateScript(targetAccountId, alias) {
+  function generateScript(targetAccountId, alias, platformAcct) {
     return `#!/bin/bash
 # ============================================================
 # AWS Well-Architected Review Tool — IAM Role Setup Script
 # ============================================================
 # Target Account : ${targetAccountId} (${alias})
-# Platform Account: ${PLATFORM_ACCOUNT_ID}
+# Platform Account: ${platformAcct}
 # Role Name      : ${ROLE_NAME}
 #
 # Run this script in AWS CloudShell of the TARGET account
@@ -28,7 +53,7 @@ const AccountsPage = (() => {
 set -e
 
 ROLE_NAME="${ROLE_NAME}"
-PLATFORM_ACCOUNT="${PLATFORM_ACCOUNT_ID}"
+PLATFORM_ACCOUNT="${platformAcct}"
 TARGET_ACCOUNT="${targetAccountId}"
 
 echo "============================================================"
@@ -152,7 +177,7 @@ echo "============================================================"
       <div class="card">
         <div class="flex-between mb-16">
           <div><h4>${acct.alias || acct.id}</h4><span class="text-secondary" style="font-size:0.82rem;">${acct.id}</span></div>
-          <span class="badge ${statusBadgeClass(acct.status)}">${acct.status || 'Unknown'}</span>
+          <span class="badge ${statusBadgeClass(acct.status)}">${statusLabel(acct.status)}</span>
         </div>
         <div class="flex gap-8" style="flex-wrap:wrap;">
           <span class="badge badge-critical">${acct.critical||0} Critical</span>
@@ -175,9 +200,9 @@ echo "============================================================"
     return `<tr>
       <td style="font-family:var(--font-mono); font-size:0.88rem;">${acct.id}</td>
       <td>${acct.alias || ''}</td>
-      <td style="font-family:var(--font-mono); font-size:0.82rem; word-break:break-all;">${acct.roleArn || acct.role_arn || ''}</td>
-      <td><span class="badge ${statusBadgeClass(acct.status)}">${acct.status || 'Unknown'}</span></td>
-      <td>${acct.lastVerified || acct.last_verified || '—'}</td>
+      <td style="font-family:var(--font-mono); font-size:0.82rem; word-break:break-all;">${acct.roleArn}</td>
+      <td><span class="badge ${statusBadgeClass(acct.status)}">${statusLabel(acct.status)}</span></td>
+      <td>${acct.lastVerified}</td>
       ${actions}
     </tr>`;
   }
@@ -193,9 +218,15 @@ echo "============================================================"
   async function init() {
     document.getElementById('btn-add-account')?.addEventListener('click', showAddModal);
     try {
+      // Fetch platform account ID for script generation
+      try {
+        const info = await ApiClient.get('/platform/info');
+        platformAccountId = (info && info.accountId) || '';
+      } catch (_) { /* will ask user to input manually */ }
+
       const data = await ApiClient.get('/accounts');
-      accounts = (data && (data.accounts || data)) || [];
-      if (!Array.isArray(accounts)) accounts = [];
+      const raw = (data && data.accounts) || [];
+      accounts = (Array.isArray(raw) ? raw : []).map(normalizeAccount);
       if (accounts.length === 0) { showEmpty(); return; }
       showContent();
       renderTable();
@@ -234,65 +265,269 @@ echo "============================================================"
   function escapeHtml(str) { return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
   // --- Modals (Add, Script, Edit, Delete, Verify) ---
-  function showAddModal() {
-    const body = `
-      <div id="add-step-1">
-        <p class="text-secondary mb-16" style="font-size:0.88rem;">Step 1: กรอก Account ID และ Alias เพื่อสร้าง script สำหรับ setup IAM role</p>
-        <form id="add-step1-form">
-          <div class="form-group"><label for="add-account-id">Target Account ID</label><input type="text" id="add-account-id" placeholder="123456789012" required pattern="\\d{12}" title="12-digit AWS Account ID"></div>
-          <div class="form-group"><label for="add-alias">Alias</label><input type="text" id="add-alias" placeholder="Production" required></div>
-          <button type="submit" class="btn btn-primary btn-block mt-16">Generate Setup Script</button>
-        </form>
-      </div>
-      <div id="add-step-2" class="hidden">
-        <p class="text-secondary mb-16" style="font-size:0.88rem;">Step 2: Copy script แล้วรันใน AWS CloudShell ของ target account จากนั้นกด "Register Account"</p>
-        <div style="margin-bottom:12px;">
-          <div class="flex-between" style="margin-bottom:4px;"><label style="font-size:0.82rem; font-weight:500; color:var(--text-secondary);">CloudShell Script</label><button id="btn-copy-script" class="btn btn-secondary btn-sm">Copy Script</button></div>
-          <div id="script-output" style="background:var(--color-near-black); color:#e8e6dc; padding:16px; border-radius:var(--radius-md); font-family:var(--font-mono); font-size:0.75rem; line-height:1.5; max-height:320px; overflow-y:auto; white-space:pre; tab-size:2;"></div>
-        </div>
-        <div class="alert alert-warning" style="font-size:0.82rem; margin-bottom:12px;">Trust policy ใช้ External ID: <code style="font-size:0.82rem;">wa-review-<span id="script-ext-id"></span></code></div>
-        <div id="add-step2-info" style="margin-bottom:12px;"><div class="form-group"><label>Role ARN (auto-filled)</label><input type="text" id="add-role-arn" readonly style="background:var(--bg-page);"></div></div>
-        <div class="flex gap-8"><button id="btn-back-step1" class="btn btn-secondary" style="flex:1;">Back</button><button id="btn-register" class="btn btn-primary" style="flex:1;">Register Account</button></div>
-      </div>
-    `;
-    App.showModal('Add Account', body);
 
-    document.getElementById('add-step1-form')?.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const accountId = document.getElementById('add-account-id').value.trim();
-      const alias = document.getElementById('add-alias').value.trim();
-      if (!accountId || !alias) return;
-      document.getElementById('script-output').textContent = generateScript(accountId, alias);
-      document.getElementById('add-role-arn').value = 'arn:aws:iam::' + accountId + ':role/' + ROLE_NAME;
-      document.getElementById('script-ext-id').textContent = accountId;
-      document.getElementById('add-step-1').classList.add('hidden');
-      document.getElementById('add-step-2').classList.remove('hidden');
-    });
-    document.getElementById('btn-copy-script')?.addEventListener('click', () => {
-      navigator.clipboard.writeText(document.getElementById('script-output').textContent).then(() => {
-        const btn = document.getElementById('btn-copy-script'); btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = 'Copy Script'; }, 2000);
-      });
-    });
-    document.getElementById('btn-back-step1')?.addEventListener('click', () => {
-      document.getElementById('add-step-1').classList.remove('hidden');
-      document.getElementById('add-step-2').classList.add('hidden');
-    });
-    document.getElementById('btn-register')?.addEventListener('click', async () => {
-      const accountId = document.getElementById('add-account-id').value.trim();
-      const alias = document.getElementById('add-alias').value.trim();
-      const roleArn = document.getElementById('add-role-arn').value;
-      try {
-        await ApiClient.post('/accounts', { id: accountId, alias, roleArn });
-        App.hideModal();
-        init();
-      } catch (err) {
-        alert(err.message || 'ไม่สามารถลงทะเบียน account ได้');
+  function stepIndicator(current) {
+    const steps = [
+      { num: 1, label: 'Account Info' },
+      { num: 2, label: 'Run Script' },
+      { num: 3, label: 'Enter ARN' },
+      { num: 4, label: 'Verify & Save' },
+    ];
+    return `<div style="display:flex; gap:0; margin-bottom:20px; position:relative;">
+      ${steps.map((s, i) => {
+        const isActive = s.num === current;
+        const isDone = s.num < current;
+        const circleStyle = isActive
+          ? 'background:var(--color-terracotta); color:#fff; box-shadow:0 0 0 3px rgba(201,100,66,0.2);'
+          : isDone
+            ? 'background:var(--color-success); color:#fff;'
+            : 'background:var(--bg-page); color:var(--text-tertiary); border:1.5px solid var(--border-default);';
+        const lineColor = isDone ? 'var(--color-success)' : 'var(--border-default)';
+        const line = i < steps.length - 1
+          ? `<div style="flex:1; height:2px; background:${lineColor}; align-self:center; margin:0 -2px;"></div>`
+          : '';
+        return `<div style="display:flex; align-items:center; ${i < steps.length - 1 ? 'flex:1;' : ''}">
+          <div style="display:flex; flex-direction:column; align-items:center; min-width:60px;">
+            <div style="width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.82rem; font-weight:600; transition:all 0.2s; ${circleStyle}">${isDone ? '✓' : s.num}</div>
+            <span style="font-size:0.7rem; margin-top:4px; white-space:nowrap; color:${isActive ? 'var(--text-primary)' : 'var(--text-tertiary)'}; font-weight:${isActive ? '500' : '400'};">${s.label}</span>
+          </div>
+          ${line}
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  function showAddModal() {
+    // State for the wizard
+    let wizTargetId = '';
+    let wizAlias = '';
+    let wizPlatformId = platformAccountId;
+    let wizRoleArn = '';
+
+    function renderStep1() {
+      return `
+        ${stepIndicator(1)}
+        <p class="text-secondary mb-16" style="font-size:0.88rem;">กรอกข้อมูล AWS Account ที่ต้องการเพิ่มเข้าระบบ</p>
+        <form id="wizard-step1-form">
+          <div class="form-group">
+            <label for="wiz-target-id">Target Account ID <span style="color:var(--color-error);">*</span></label>
+            <input type="text" id="wiz-target-id" placeholder="123456789012" required pattern="\\d{12}" title="12-digit AWS Account ID" value="${wizTargetId}">
+            <span class="text-secondary" style="font-size:0.75rem;">เลข 12 หลักของ AWS Account ที่ต้องการสแกน</span>
+          </div>
+          <div class="form-group">
+            <label for="wiz-alias">Alias <span style="color:var(--color-error);">*</span></label>
+            <input type="text" id="wiz-alias" placeholder="Production" required value="${wizAlias}">
+            <span class="text-secondary" style="font-size:0.75rem;">ชื่อเรียกสั้นๆ เช่น Production, Staging, Dev</span>
+          </div>
+          <div class="form-group">
+            <label for="wiz-platform-id">Platform Account ID <span style="color:var(--color-error);">*</span></label>
+            <input type="text" id="wiz-platform-id" placeholder="000011112222" required pattern="\\d{12}" title="12-digit AWS Account ID" value="${wizPlatformId}">
+            <span class="text-secondary" style="font-size:0.75rem;">เลข Account ของ platform ที่ deploy WA Review Tool อยู่</span>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block mt-16">ถัดไป →</button>
+        </form>
+      `;
+    }
+
+    function renderStep2() {
+      const script = generateScript(wizTargetId, wizAlias, wizPlatformId);
+      return `
+        ${stepIndicator(2)}
+        <p class="text-secondary mb-16" style="font-size:0.88rem;">
+          Copy script ด้านล่างแล้วไปรันใน <strong>AWS CloudShell</strong> ของ <strong>Target Account (${wizTargetId})</strong>
+        </p>
+
+        <div style="margin-bottom:12px;">
+          <div class="flex-between" style="margin-bottom:4px;">
+            <label style="font-size:0.82rem; font-weight:500; color:var(--text-secondary);">CloudShell Script</label>
+            <button id="wiz-copy-script" class="btn btn-secondary btn-sm">Copy Script</button>
+          </div>
+          <div id="wiz-script-output" style="background:var(--color-near-black); color:#e8e6dc; padding:16px; border-radius:var(--radius-md); font-family:var(--font-mono); font-size:0.72rem; line-height:1.5; max-height:280px; overflow-y:auto; white-space:pre; tab-size:2;">${escapeHtml(script)}</div>
+        </div>
+
+        <div class="alert alert-warning" style="font-size:0.82rem; margin-bottom:12px;">
+          <strong>สำคัญ:</strong> Trust policy ใช้ External ID: <code>wa-review-${wizTargetId}</code> เพื่อป้องกัน confused deputy attack
+        </div>
+
+        <div style="background:var(--bg-page); border:1px solid var(--border-default); border-radius:var(--radius-md); padding:12px; margin-bottom:16px;">
+          <p style="font-size:0.82rem; font-weight:500; margin-bottom:8px;">Script จะสร้าง IAM Role ที่มีสิทธิ์:</p>
+          <ul style="font-size:0.78rem; color:var(--text-secondary); padding-left:16px; line-height:1.8; margin:0;">
+            <li><strong>SecurityAudit</strong> — ตรวจสอบ security configurations</li>
+            <li><strong>10 Services</strong> — EC2, S3, RDS, IAM, Lambda, DynamoDB, ELB, CloudFront, ECS, EKS (read-only)</li>
+            <li><strong>Well-Architected Tool + Cost Explorer + Compute Optimizer</strong></li>
+          </ul>
+        </div>
+
+        <div class="flex gap-8">
+          <button id="wiz-back-1" class="btn btn-secondary" style="flex:1;">← ย้อนกลับ</button>
+          <button id="wiz-next-2" class="btn btn-primary" style="flex:1;">รันเสร็จแล้ว ถัดไป →</button>
+        </div>
+      `;
+    }
+
+    function renderStep3() {
+      const expectedArn = 'arn:aws:iam::' + wizTargetId + ':role/' + ROLE_NAME;
+      return `
+        ${stepIndicator(3)}
+        <p class="text-secondary mb-16" style="font-size:0.88rem;">
+          กรอก Role ARN ที่ได้จากการรัน script ใน Target Account
+        </p>
+
+        <div class="form-group">
+          <label for="wiz-role-arn">Role ARN <span style="color:var(--color-error);">*</span></label>
+          <input type="text" id="wiz-role-arn" placeholder="arn:aws:iam::123456789012:role/WAReviewReadOnly" required value="${wizRoleArn || expectedArn}">
+          <span class="text-secondary" style="font-size:0.75rem;">ปกติจะเป็น: <code style="font-size:0.75rem;">${expectedArn}</code></span>
+        </div>
+
+        <div class="alert alert-success" style="font-size:0.82rem; margin-bottom:16px;">
+          <strong>Tip:</strong> หลังรัน script สำเร็จ จะแสดง Role ARN ในบรรทัดสุดท้าย — copy มาวางได้เลย
+        </div>
+
+        <div class="flex gap-8">
+          <button id="wiz-back-2" class="btn btn-secondary" style="flex:1;">← ย้อนกลับ</button>
+          <button id="wiz-next-3" class="btn btn-primary" style="flex:1;">ถัดไป →</button>
+        </div>
+      `;
+    }
+
+    function renderStep4() {
+      return `
+        ${stepIndicator(4)}
+        <p class="text-secondary mb-16" style="font-size:0.88rem;">
+          ตรวจสอบข้อมูลและบันทึก Account
+        </p>
+
+        <div style="background:var(--bg-page); border:1px solid var(--border-default); border-radius:var(--radius-md); padding:16px; margin-bottom:16px;">
+          <div style="display:grid; grid-template-columns:auto 1fr; gap:8px 16px; font-size:0.88rem;">
+            <span class="text-secondary">Target Account:</span><span style="font-family:var(--font-mono);">${wizTargetId}</span>
+            <span class="text-secondary">Alias:</span><span>${wizAlias}</span>
+            <span class="text-secondary">Platform Account:</span><span style="font-family:var(--font-mono);">${wizPlatformId}</span>
+            <span class="text-secondary">Role ARN:</span><span style="font-family:var(--font-mono); font-size:0.82rem; word-break:break-all;">${wizRoleArn}</span>
+            <span class="text-secondary">External ID:</span><span style="font-family:var(--font-mono);">wa-review-${wizTargetId}</span>
+          </div>
+        </div>
+
+        <div id="wiz-error" class="alert alert-error hidden" style="margin-bottom:12px;"></div>
+        <div id="wiz-sync-result" class="hidden" style="margin-bottom:16px;"></div>
+
+        <div class="flex gap-8">
+          <button id="wiz-back-3" class="btn btn-secondary" style="flex:1;">← ย้อนกลับ</button>
+          <button id="wiz-save" class="btn btn-primary" style="flex:1;">✓ บันทึกและทดสอบการเชื่อมต่อ</button>
+        </div>
+      `;
+    }
+
+    function showStep(n) {
+      let html;
+      let title;
+      if (n === 1) { html = renderStep1(); title = 'Add Account — ข้อมูล Account'; }
+      else if (n === 2) { html = renderStep2(); title = 'Add Account — รัน Script'; }
+      else if (n === 3) { html = renderStep3(); title = 'Add Account — กรอก Role ARN'; }
+      else { html = renderStep4(); title = 'Add Account — ตรวจสอบและบันทึก'; }
+
+      const modalTitle = document.getElementById('modal-title');
+      const modalBody = document.getElementById('modal-body');
+      if (modalTitle) modalTitle.textContent = title;
+      if (modalBody) modalBody.innerHTML = html;
+
+      // Bind events per step
+      if (n === 1) {
+        document.getElementById('wizard-step1-form')?.addEventListener('submit', (e) => {
+          e.preventDefault();
+          wizTargetId = document.getElementById('wiz-target-id').value.trim();
+          wizAlias = document.getElementById('wiz-alias').value.trim();
+          wizPlatformId = document.getElementById('wiz-platform-id').value.trim();
+          if (!wizTargetId || !wizAlias || !wizPlatformId) return;
+          showStep(2);
+        });
+      } else if (n === 2) {
+        document.getElementById('wiz-copy-script')?.addEventListener('click', () => {
+          const script = generateScript(wizTargetId, wizAlias, wizPlatformId);
+          navigator.clipboard.writeText(script).then(() => {
+            const btn = document.getElementById('wiz-copy-script');
+            if (btn) { btn.textContent = '✓ Copied!'; btn.classList.remove('btn-secondary'); btn.classList.add('btn-primary');
+              setTimeout(() => { btn.textContent = 'Copy Script'; btn.classList.remove('btn-primary'); btn.classList.add('btn-secondary'); }, 2000); }
+          });
+        });
+        document.getElementById('wiz-back-1')?.addEventListener('click', () => showStep(1));
+        document.getElementById('wiz-next-2')?.addEventListener('click', () => showStep(3));
+      } else if (n === 3) {
+        document.getElementById('wiz-back-2')?.addEventListener('click', () => showStep(2));
+        document.getElementById('wiz-next-3')?.addEventListener('click', () => {
+          wizRoleArn = document.getElementById('wiz-role-arn').value.trim();
+          if (!wizRoleArn) { document.getElementById('wiz-role-arn').focus(); return; }
+          showStep(4);
+        });
+      } else if (n === 4) {
+        document.getElementById('wiz-back-3')?.addEventListener('click', () => showStep(3));
+        document.getElementById('wiz-save')?.addEventListener('click', handleSaveAndVerify);
       }
-    });
+    }
+
+    async function handleSaveAndVerify() {
+      const btn = document.getElementById('wiz-save');
+      const errEl = document.getElementById('wiz-error');
+      const resultEl = document.getElementById('wiz-sync-result');
+      if (!btn) return;
+
+      btn.disabled = true;
+      btn.textContent = '⏳ กำลังบันทึก...';
+      if (errEl) errEl.classList.add('hidden');
+      if (resultEl) resultEl.classList.add('hidden');
+
+      // Step 1: Save account
+      try {
+        await ApiClient.post('/accounts', {
+          accountId: wizTargetId,
+          alias: wizAlias,
+          roleArn: wizRoleArn,
+        });
+      } catch (err) {
+        if (errEl) {
+          errEl.textContent = err.message || 'ไม่สามารถบันทึก account ได้';
+          errEl.classList.remove('hidden');
+        }
+        btn.disabled = false;
+        btn.textContent = '✓ บันทึกและทดสอบการเชื่อมต่อ';
+        return;
+      }
+
+      // Step 2: Verify connectivity
+      btn.textContent = '⏳ กำลังทดสอบการเชื่อมต่อ...';
+      if (resultEl) {
+        resultEl.classList.remove('hidden');
+        resultEl.innerHTML = '<p class="text-secondary" style="font-size:0.88rem;">✅ บันทึกสำเร็จ — กำลังทดสอบ AssumeRole...</p>';
+      }
+
+      try {
+        const result = await ApiClient.post('/accounts/' + wizTargetId + '/verify');
+        const connected = result && (result.connectionStatus === 'CONNECTED');
+        if (resultEl) {
+          resultEl.innerHTML = connected
+            ? '<div class="alert alert-success" style="font-size:0.88rem;">✅ บันทึกสำเร็จและเชื่อมต่อได้! พร้อมสำหรับการสแกน</div>'
+            : `<div class="alert alert-warning" style="font-size:0.88rem;">⚠️ บันทึกสำเร็จ แต่ยังเชื่อมต่อไม่ได้ — ${result?.error || 'ตรวจสอบว่ารัน script ใน target account เรียบร้อยแล้ว'}</div>`;
+        }
+      } catch (err) {
+        if (resultEl) {
+          resultEl.innerHTML = `<div class="alert alert-warning" style="font-size:0.88rem;">⚠️ บันทึกสำเร็จ แต่ทดสอบการเชื่อมต่อล้มเหลว — ${err.message || 'ลอง Verify อีกครั้งในหน้า Accounts'}</div>`;
+        }
+      }
+
+      // Show close button
+      btn.textContent = '✓ เสร็จสิ้น — ปิด';
+      btn.disabled = false;
+      btn.onclick = () => { App.hideModal(); init(); };
+      // Hide back button
+      document.getElementById('wiz-back-3')?.classList.add('hidden');
+    }
+
+    App.showModal('Add Account', '<div></div>');
+    showStep(1);
   }
 
   function showScriptModal(accountId, alias) {
-    const script = generateScript(accountId, alias);
+    const pAcct = platformAccountId || 'PLATFORM_ACCOUNT_ID';
+    const script = generateScript(accountId, alias, pAcct);
     const body = `
       <p class="text-secondary mb-16" style="font-size:0.88rem;">CloudShell script สำหรับ account ${accountId} (${alias})</p>
       <div class="flex-between" style="margin-bottom:4px;"><label style="font-size:0.82rem; font-weight:500; color:var(--text-secondary);">Script</label><button id="btn-copy-existing" class="btn btn-secondary btn-sm">Copy Script</button></div>

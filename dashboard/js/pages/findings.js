@@ -120,7 +120,16 @@ const FindingsPage = (() => {
   // --- Init ---
   async function init() {
     try {
-      const data = await ApiClient.get('/scans/latest/results');
+      // Get latest scan from history, then fetch its results
+      const historyData = await ApiClient.get('/scans');
+      const scans = (historyData && historyData.scans) || [];
+      if (!scans.length) { showEmpty(); return; }
+
+      const latest = scans.find(s => s.status === 'COMPLETED') || scans[0];
+      const scanId = latest.scanId || latest.scan_id;
+      if (!scanId) { showEmpty(); return; }
+
+      const data = await ApiClient.get('/scans/' + scanId + '/results');
       findings = (data && data.findings) || [];
       if (findings.length === 0) { showEmpty(); return; }
       showContent();

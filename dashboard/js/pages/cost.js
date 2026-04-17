@@ -37,7 +37,12 @@ const CostPage = (() => {
   async function init() {
     destroyCharts();
     try {
-      costData = await ApiClient.get('/cost-recommendations');
+      costData = await ApiClient.get('/cost-recommendations').catch(() => null);
+      if (!costData) {
+        // Fallback: cost recommendations endpoint may not be deployed yet
+        showEmpty();
+        return;
+      }
       if (!costData || (!costData.riRecommendations && !costData.hubRecommendations && !costData.spRecommendations)) {
         showEmpty();
         return;

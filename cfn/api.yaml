@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: WA Review Tool - API (API Gateway + Lambda + WAF)
+Description: WA Review Tool - API (API Gateway + Lambda + WAF + CORS)
 Parameters:
   UserPoolArn:
     Type: String
@@ -122,10 +122,36 @@ Resources:
       IdentitySource: method.request.header.Authorization
       ProviderARNs: [!Ref UserPoolArn]
 
+  # ============================================================
   # /scans
+  # ============================================================
   ScansResource:
     Type: AWS::ApiGateway::Resource
     Properties: {RestApiId: !Ref Api, ParentId: !GetAtt Api.RootResourceId, PathPart: scans}
+
+  ScansOptions:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref ScansResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: '200'
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+      MethodResponses:
+        - StatusCode: '200'
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
 
   ScansPost:
     Type: AWS::ApiGateway::Method
@@ -153,10 +179,125 @@ Resources:
         IntegrationHttpMethod: POST
         Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ScanHandler.Arn}/invocations'
 
+  # /scans/{id}
+  ScanIdResource:
+    Type: AWS::ApiGateway::Resource
+    Properties: {RestApiId: !Ref Api, ParentId: !Ref ScansResource, PathPart: '{id}'}
+
+  # /scans/{id}/status
+  ScanIdStatusResource:
+    Type: AWS::ApiGateway::Resource
+    Properties: {RestApiId: !Ref Api, ParentId: !Ref ScanIdResource, PathPart: status}
+
+  ScanIdStatusOptions:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref ScanIdStatusResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: '200'
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+      MethodResponses:
+        - StatusCode: '200'
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+  ScanIdStatusGet:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref ScanIdStatusResource
+      HttpMethod: GET
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ScanHandler.Arn}/invocations'
+
+  # /scans/{id}/results
+  ScanIdResultsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties: {RestApiId: !Ref Api, ParentId: !Ref ScanIdResource, PathPart: results}
+
+  ScanIdResultsOptions:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref ScanIdResultsResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: '200'
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+      MethodResponses:
+        - StatusCode: '200'
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+  ScanIdResultsGet:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref ScanIdResultsResource
+      HttpMethod: GET
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ScanHandler.Arn}/invocations'
+
+  # ============================================================
   # /accounts
+  # ============================================================
   AccountsResource:
     Type: AWS::ApiGateway::Resource
     Properties: {RestApiId: !Ref Api, ParentId: !GetAtt Api.RootResourceId, PathPart: accounts}
+
+  AccountsOptions:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref AccountsResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: '200'
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+      MethodResponses:
+        - StatusCode: '200'
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
 
   AccountsPost:
     Type: AWS::ApiGateway::Method
@@ -184,7 +325,106 @@ Resources:
         IntegrationHttpMethod: POST
         Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccountHandler.Arn}/invocations'
 
+  # /accounts/{id}
+  AccountIdResource:
+    Type: AWS::ApiGateway::Resource
+    Properties: {RestApiId: !Ref Api, ParentId: !Ref AccountsResource, PathPart: '{id}'}
+
+  AccountIdOptions:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref AccountIdResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: '200'
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'PUT,DELETE,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+      MethodResponses:
+        - StatusCode: '200'
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+  AccountIdPut:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref AccountIdResource
+      HttpMethod: PUT
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccountHandler.Arn}/invocations'
+
+  AccountIdDelete:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref AccountIdResource
+      HttpMethod: DELETE
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccountHandler.Arn}/invocations'
+
+  # /accounts/{id}/verify
+  AccountIdVerifyResource:
+    Type: AWS::ApiGateway::Resource
+    Properties: {RestApiId: !Ref Api, ParentId: !Ref AccountIdResource, PathPart: verify}
+
+  AccountIdVerifyOptions:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref AccountIdVerifyResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: '200'
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+      MethodResponses:
+        - StatusCode: '200'
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+  AccountIdVerifyPost:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref AccountIdVerifyResource
+      HttpMethod: POST
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AccountHandler.Arn}/invocations'
+
+  # ============================================================
   # /team/members
+  # ============================================================
   TeamResource:
     Type: AWS::ApiGateway::Resource
     Properties: {RestApiId: !Ref Api, ParentId: !GetAtt Api.RootResourceId, PathPart: team}
@@ -192,6 +432,30 @@ Resources:
   TeamMembersResource:
     Type: AWS::ApiGateway::Resource
     Properties: {RestApiId: !Ref Api, ParentId: !Ref TeamResource, PathPart: members}
+
+  TeamMembersOptions:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref TeamMembersResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: '200'
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+      MethodResponses:
+        - StatusCode: '200'
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
 
   TeamMembersPost:
     Type: AWS::ApiGateway::Method
@@ -219,7 +483,93 @@ Resources:
         IntegrationHttpMethod: POST
         Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TeamHandler.Arn}/invocations'
 
-  # Lambda Permissions for API Gateway
+  # /team/members/{email}
+  TeamMemberEmailResource:
+    Type: AWS::ApiGateway::Resource
+    Properties: {RestApiId: !Ref Api, ParentId: !Ref TeamMembersResource, PathPart: '{email}'}
+
+  TeamMemberEmailOptions:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref TeamMemberEmailResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: '200'
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'DELETE,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+      MethodResponses:
+        - StatusCode: '200'
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+  TeamMemberEmailDelete:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref TeamMemberEmailResource
+      HttpMethod: DELETE
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TeamHandler.Arn}/invocations'
+
+  # /team/members/{email}/role
+  TeamMemberEmailRoleResource:
+    Type: AWS::ApiGateway::Resource
+    Properties: {RestApiId: !Ref Api, ParentId: !Ref TeamMemberEmailResource, PathPart: role}
+
+  TeamMemberEmailRoleOptions:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref TeamMemberEmailRoleResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: '200'
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'PUT,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+      MethodResponses:
+        - StatusCode: '200'
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+  TeamMemberEmailRolePut:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref TeamMemberEmailRoleResource
+      HttpMethod: PUT
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TeamHandler.Arn}/invocations'
+
+  # ============================================================
+  # Lambda Permissions
+  # ============================================================
   ScanPermission:
     Type: AWS::Lambda::Permission
     Properties: {FunctionName: !Ref ScanHandler, Action: lambda:InvokeFunction, Principal: apigateway.amazonaws.com, SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*'}
@@ -232,10 +582,34 @@ Resources:
     Type: AWS::Lambda::Permission
     Properties: {FunctionName: !Ref TeamHandler, Action: lambda:InvokeFunction, Principal: apigateway.amazonaws.com, SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*'}
 
-  # API Deployment
+  # ============================================================
+  # Deployment
+  # ============================================================
   ApiDeployment:
     Type: AWS::ApiGateway::Deployment
-    DependsOn: [ScansPost, ScansGet, AccountsPost, AccountsGet, TeamMembersPost, TeamMembersGet]
+    DependsOn:
+      - ScansOptions
+      - ScansPost
+      - ScansGet
+      - ScanIdStatusOptions
+      - ScanIdStatusGet
+      - ScanIdResultsOptions
+      - ScanIdResultsGet
+      - AccountsOptions
+      - AccountsPost
+      - AccountsGet
+      - AccountIdOptions
+      - AccountIdPut
+      - AccountIdDelete
+      - AccountIdVerifyOptions
+      - AccountIdVerifyPost
+      - TeamMembersOptions
+      - TeamMembersPost
+      - TeamMembersGet
+      - TeamMemberEmailOptions
+      - TeamMemberEmailDelete
+      - TeamMemberEmailRoleOptions
+      - TeamMemberEmailRolePut
     Properties:
       RestApiId: !Ref Api
 
@@ -246,7 +620,9 @@ Resources:
       DeploymentId: !Ref ApiDeployment
       StageName: prod
 
+  # ============================================================
   # WAF
+  # ============================================================
   WebACL:
     Type: AWS::WAFv2::WebACL
     Properties:

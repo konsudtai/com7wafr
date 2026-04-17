@@ -50,8 +50,8 @@ const HistoryPage = (() => {
   }
 
   function renderRow(scan) {
-    const id = scan.scan_id || scan.id || '';
-    const date = scan.started_at || scan.date || '';
+    const id = scan.scanId || scan.scan_id || scan.id || '';
+    const date = scan.createdAt || scan.started_at || scan.date || '';
     const status = scan.status || '';
     return `<tr>
       <td style="font-family:var(--font-mono); font-size:0.88rem;">${id}</td>
@@ -68,7 +68,7 @@ const HistoryPage = (() => {
   async function init() {
     if (trendChart) { trendChart.destroy(); trendChart = null; }
     try {
-      const data = await ApiClient.get('/scans/history');
+      const data = await ApiClient.get('/scans');
       scans = (data && (data.scans || data)) || [];
       if (!Array.isArray(scans)) scans = [];
       if (scans.length === 0) { showEmpty(); return; }
@@ -97,7 +97,7 @@ const HistoryPage = (() => {
     if (!ctx) return;
     const completed = scans.filter(s => (s.status || '') === 'COMPLETED').reverse();
     if (completed.length === 0) return;
-    const labels = completed.map(s => (s.started_at || s.date || '').split(' ')[0] || '');
+    const labels = completed.map(s => (s.createdAt || s.started_at || s.date || '').split('T')[0] || '');
     trendChart = new Chart(ctx, {
       type: 'line',
       data: {

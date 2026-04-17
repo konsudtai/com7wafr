@@ -58,7 +58,7 @@ const ScanPage = (() => {
   async function loadConfig() {
     try {
       const data = await ApiClient.get('/accounts');
-      const accounts = (data && (data.accounts || data)) || [];
+      const accounts = (data && data.accounts) || [];
       const count = Array.isArray(accounts) ? accounts.length : 0;
       const configEl = document.getElementById('scan-config');
       if (configEl) {
@@ -100,7 +100,7 @@ const ScanPage = (() => {
       try {
         const data = await ApiClient.get('/scans/' + scanId + '/status');
         const status = data && data.status;
-        const pct = Math.round(data && data.progress_percentage || 0);
+        const pct = Math.round((data && data.progress) || 0);
         updateStatus(status || 'IN_PROGRESS');
         updateProgress(pct);
         updateCurrent(data && data.current_service ? `${data.current_service} — ${data.current_region || ''}` : '—');

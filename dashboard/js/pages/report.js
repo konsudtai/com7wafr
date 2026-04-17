@@ -407,7 +407,16 @@ const ReportPage = (() => {
     });
 
     try {
-      const data = await ApiClient.get('/scans/latest/results');
+      // Get latest scan from history, then fetch its results
+      const historyData = await ApiClient.get('/scans');
+      const scansArr = (historyData && historyData.scans) || [];
+      if (!scansArr.length) { showReportEmpty(); return; }
+
+      const latest = scansArr.find(s => s.status === 'COMPLETED') || scansArr[0];
+      const scanId = latest.scanId || latest.scan_id;
+      if (!scanId) { showReportEmpty(); return; }
+
+      const data = await ApiClient.get('/scans/' + scanId + '/results');
       if (!data || !data.findings || data.findings.length === 0) {
         showReportEmpty();
         return;
