@@ -227,7 +227,7 @@ class Scanner:
         if self.account_manager:
             creds = self.account_manager.get_credentials(account)
         else:
-            role_arn = f"arn:aws:iam::{account}:role/WellArchitectedScanRole"
+            role_arn = f"arn:aws:iam::{account}:role/WAReviewReadOnly"
             creds = self.sts_client.get_or_refresh_credentials(account, role_arn)
 
         return boto3.Session(

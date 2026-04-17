@@ -44,12 +44,15 @@ class STSClient:
         self._credentials_cache: dict[str, CachedCredentials] = {}
         self._sts_client = boto3.client("sts")
 
-    def assume_role(self, role_arn: str, session_name: str) -> dict:
+    def assume_role(
+        self, role_arn: str, session_name: str, external_id: str | None = None
+    ) -> dict:
         """Assume an IAM role and return temporary credentials.
 
         Args:
             role_arn: The ARN of the role to assume.
             session_name: An identifier for the assumed role session.
+            external_id: Optional external ID for confused deputy protection.
 
         Returns:
             A dict with keys ``AccessKeyId``, ``SecretAccessKey``,
@@ -73,11 +76,15 @@ class STSClient:
             self.session_duration,
         )
 
-        response = self._sts_client.assume_role(
-            RoleArn=role_arn,
-            RoleSessionName=session_name,
-            DurationSeconds=self.session_duration,
-        )
+        kwargs: dict = {
+            "RoleArn": role_arn,
+            "RoleSessionName": session_name,
+            "DurationSeconds": self.session_duration,
+        }
+        if external_id:
+            kwargs["ExternalId"] = external_id
+
+        response = self._sts_client.assume_role(**kwargs)
 
         credentials = response["Credentials"]
         return {
@@ -122,8 +129,11 @@ class STSClient:
             "Refreshing credentials for account %s", account_id
         )
 
+        external_id = f"wa-review-{account_id}"
         creds = self.assume_role(
-            role_arn, session_name=f"scan-{account_id}"
+            role_arn,
+            session_name=f"scan-{account_id}",
+            external_id=external_id,
         )
 
         self._credentials_cache[account_id] = CachedCredentials(

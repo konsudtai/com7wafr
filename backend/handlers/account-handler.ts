@@ -159,13 +159,14 @@ async function listAllAccounts(): Promise<AccountRecord[]> {
  * Test assume role connectivity for an account.
  * Returns true if assume role succeeds, false otherwise.
  */
-async function testAssumeRole(roleArn: string): Promise<{ success: boolean; error?: string }> {
+async function testAssumeRole(roleArn: string, accountId: string): Promise<{ success: boolean; error?: string }> {
   try {
     await stsClient.send(
       new AssumeRoleCommand({
         RoleArn: roleArn,
         RoleSessionName: 'wa-review-verify',
-        DurationSeconds: 900, // minimum duration for verification
+        ExternalId: `wa-review-${accountId}`,
+        DurationSeconds: 900,
       }),
     );
     return { success: true };
@@ -403,7 +404,7 @@ async function verifyAccount(event: APIGatewayProxyEvent): Promise<APIGatewayPro
     return jsonResponse(404, { message: `Account ${accountId} not found` });
   }
 
-  const result = await testAssumeRole(existing.roleArn);
+  const result = await testAssumeRole(existing.roleArn, accountId);
   const now = new Date().toISOString();
   const connectionStatus = result.success ? 'CONNECTED' : 'FAILED';
 
