@@ -6,13 +6,22 @@
 
 const CompliancePage = (() => {
   let findings = [];
+  let allFindings = [];
   let activeFramework = 0;
+  let selectedAccount = ''; // '' = all accounts
 
   function render() {
     return `
       <div class="page-header">
         <h2>Compliance / Frameworks</h2>
         <p>สถานะ compliance จากผลการ scan — map กับ frameworks มาตรฐาน</p>
+      </div>
+
+      <div id="compliance-account-filter" class="card mb-24 hidden" style="padding:12px 16px;">
+        <div class="flex gap-8" style="align-items:center;">
+          <label style="font-size:0.88rem; font-weight:500; white-space:nowrap;">Account:</label>
+          <select id="compliance-account-select" style="flex:1; max-width:400px;"></select>
+        </div>
       </div>
 
       <div id="compliance-loading" class="card mb-24" style="text-align:center; padding:48px;">
@@ -38,7 +47,25 @@ const CompliancePage = (() => {
       if (!scanId) { showState('empty'); return; }
 
       const data = await ApiClient.get('/scans/' + scanId + '/results');
-      findings = (data && data.findings) || [];
+      allFindings = (data && data.findings) || [];
+      findings = allFindings;
+
+      // Populate account filter
+      const accounts = [...new Set(allFindings.map(f => f.account_id || f.account || '').filter(Boolean))].sort();
+      if (accounts.length > 0) {
+        const filterEl = document.getElementById('compliance-account-filter');
+        const selectEl = document.getElementById('compliance-account-select');
+        if (filterEl && selectEl) {
+          filterEl.classList.remove('hidden');
+          selectEl.innerHTML = `<option value="">All Accounts (${accounts.length})</option>` +
+            accounts.map(a => `<option value="${a}">${a}</option>`).join('');
+          selectEl.addEventListener('change', (e) => {
+            selectedAccount = e.target.value;
+            findings = selectedAccount ? allFindings.filter(f => (f.account_id || f.account) === selectedAccount) : allFindings;
+            renderAll();
+          });
+        }
+      }
 
       showState('content');
       renderAll();

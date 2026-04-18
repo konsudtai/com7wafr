@@ -6,6 +6,8 @@
 const CostPage = (() => {
   let severityChart = null;
   let serviceChart = null;
+  let allScanFindings = [];
+  let selectedCostAccount = '';
 
   function fmt(n) { return '$' + (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
@@ -19,6 +21,13 @@ const CostPage = (() => {
       <div class="page-header">
         <h2>CloudFinOps</h2>
         <p>คำแนะนำการลดค่าใช้จ่าย AWS จากผลการสแกน Well-Architected Review</p>
+      </div>
+
+      <div id="cost-account-filter" class="card mb-24 hidden" style="padding:12px 16px;">
+        <div class="flex gap-8" style="align-items:center;">
+          <label style="font-size:0.88rem; font-weight:500; white-space:nowrap;">Account:</label>
+          <select id="cost-account-select" style="flex:1; max-width:400px;"></select>
+        </div>
       </div>
 
       <div id="cost-loading" class="card mb-24" style="text-align:center; padding:48px;">
@@ -36,7 +45,6 @@ const CostPage = (() => {
   async function init() {
     destroyCharts();
     try {
-      // Get latest completed scan
       const historyData = await ApiClient.get('/scans');
       const scans = (historyData && historyData.scans) || [];
       if (!scans.length) { showEmpty(); return; }
@@ -46,26 +54,52 @@ const CostPage = (() => {
       if (!scanId) { showEmpty(); return; }
 
       const data = await ApiClient.get('/scans/' + scanId + '/results');
-      const allFindings = (data && data.findings) || [];
-      if (allFindings.length === 0) { showEmpty(); return; }
+      allScanFindings = (data && data.findings) || [];
+      if (allScanFindings.length === 0) { showEmpty(); return; }
 
-      // Separate finding types
-      const costUsage = allFindings.filter(f => f.finding_type === 'COST_USAGE');
-      const costOpt = allFindings.filter(f => f.finding_type === 'COST_OPTIMIZATION');
-      const riFindings = allFindings.filter(f => f.finding_type === 'RI_RECOMMENDATION');
-      const spFindings = allFindings.filter(f => f.finding_type === 'SP_RECOMMENDATION');
-      const regularCostFindings = allFindings.filter(f =>
-        (f.pillar === 'Cost Optimization' || f.pillar === 'Performance Efficiency') && !f.finding_type
-      );
+      // Populate account filter
+      const accounts = [...new Set(allScanFindings.map(f => f.account_id || f.account || '').filter(Boolean))].sort();
+      if (accounts.length > 0) {
+        const filterEl = document.getElementById('cost-account-filter');
+        const selectEl = document.getElementById('cost-account-select');
+        if (filterEl && selectEl) {
+          filterEl.classList.remove('hidden');
+          selectEl.innerHTML = `<option value="">All Accounts (${accounts.length})</option>` +
+            accounts.map(a => `<option value="${a}">${a}</option>`).join('');
+          selectEl.addEventListener('change', (e) => {
+            selectedCostAccount = e.target.value;
+            processAndRender();
+          });
+        }
+      }
 
-      const hasCostData = costUsage.length > 0 || costOpt.length > 0 || riFindings.length > 0 || spFindings.length > 0 || regularCostFindings.length > 0;
-      if (!hasCostData) { showEmpty(); return; }
-
-      renderContent(allFindings, costUsage, costOpt, riFindings, spFindings, regularCostFindings);
-      createCharts(costOpt.concat(riFindings).concat(spFindings).concat(regularCostFindings));
+      processAndRender();
     } catch (err) {
       showEmpty();
     }
+  }
+
+  function processAndRender() {
+    destroyCharts();
+    const filtered = selectedCostAccount
+      ? allScanFindings.filter(f => (f.account_id || f.account) === selectedCostAccount)
+      : allScanFindings;
+
+    const costUsage = filtered.filter(f => f.finding_type === 'COST_USAGE');
+    const costOpt = filtered.filter(f => f.finding_type === 'COST_OPTIMIZATION');
+    const riFindings = filtered.filter(f => f.finding_type === 'RI_RECOMMENDATION');
+    const spFindings = filtered.filter(f => f.finding_type === 'SP_RECOMMENDATION');
+    const regularCostFindings = filtered.filter(f =>
+      (f.pillar === 'Cost Optimization' || f.pillar === 'Performance Efficiency') && !f.finding_type
+    );
+
+    const hasCostData = costUsage.length > 0 || costOpt.length > 0 || riFindings.length > 0 || spFindings.length > 0 || regularCostFindings.length > 0;
+    if (!hasCostData) { showEmpty(); return; }
+
+    document.getElementById('cost-loading')?.classList.add('hidden');
+    document.getElementById('cost-empty')?.classList.add('hidden');
+    renderContent(filtered, costUsage, costOpt, riFindings, spFindings, regularCostFindings);
+    createCharts(costOpt.concat(riFindings).concat(spFindings).concat(regularCostFindings));
   }
 
   function showEmpty() {
