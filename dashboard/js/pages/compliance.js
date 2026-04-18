@@ -376,7 +376,7 @@ const CompliancePage = (() => {
         </tbody>
       </table></div>
       <div style="margin-top:16px; padding:12px; background:rgba(201,100,66,0.06); border-radius:var(--radius-md);">
-        <strong style="font-size:0.82rem; color:var(--color-terracotta);">📋 สิ่งที่ควรทำ</strong>
+        <strong style="font-size:0.82rem; color:var(--color-terracotta);">Next Steps</strong>
         <ol style="margin:8px 0 0; padding-left:20px; font-size:0.88rem; line-height:1.8;">
           <li>แก้ไข findings ทั้งหมดด้านบน</li>
           <li>รัน Scan อีกครั้ง</li>

@@ -494,7 +494,7 @@ echo "============================================================"
       btn.textContent = '⏳ กำลังทดสอบการเชื่อมต่อ...';
       if (resultEl) {
         resultEl.classList.remove('hidden');
-        resultEl.innerHTML = '<p class="text-secondary" style="font-size:0.88rem;">✅ บันทึกสำเร็จ — กำลังทดสอบ AssumeRole...</p>';
+        resultEl.innerHTML = '<p class="text-secondary" style="font-size:0.88rem;">บันทึกสำเร็จ — กำลังทดสอบ AssumeRole...</p>';
       }
 
       try {
@@ -508,13 +508,13 @@ echo "============================================================"
         const connected = result && (result.connectionStatus === 'CONNECTED');
         if (resultEl) {
           resultEl.innerHTML = connected
-            ? '<div class="alert alert-success" style="font-size:0.88rem;">✅ บันทึกสำเร็จและเชื่อมต่อได้! พร้อมสำหรับการสแกน</div>'
-            : `<div class="alert alert-warning" style="font-size:0.88rem;">⚠️ บันทึกสำเร็จ แต่ยังเชื่อมต่อไม่ได้ — ${(result && result.error) || 'ตรวจสอบว่ารัน script ใน target account เรียบร้อยแล้ว'}<br><span style="font-size:0.78rem;">สามารถกด Verify อีกครั้งได้ในหน้า Accounts</span></div>`;
+            ? '<div class="alert alert-success" style="font-size:0.88rem;">บันทึกสำเร็จและเชื่อมต่อได้! พร้อมสำหรับการสแกน</div>'
+            : `<div class="alert alert-warning" style="font-size:0.88rem;">บันทึกสำเร็จ แต่ยังเชื่อมต่อไม่ได้ — ${(result && result.error) || 'ตรวจสอบว่ารัน script ใน target account เรียบร้อยแล้ว'}<br><span style="font-size:0.78rem;">สามารถกด Verify อีกครั้งได้ในหน้า Accounts</span></div>`;
         }
       } catch (err) {
         // Network error (CORS, timeout, etc.) — don't logout, just show warning
         if (resultEl) {
-          resultEl.innerHTML = '<div class="alert alert-warning" style="font-size:0.88rem;">⚠️ บันทึกสำเร็จ แต่ทดสอบการเชื่อมต่อล้มเหลว<br><span style="font-size:0.78rem;">สามารถกด Verify อีกครั้งได้ในหน้า Accounts</span></div>';
+          resultEl.innerHTML = '<div class="alert alert-warning" style="font-size:0.88rem;">บันทึกสำเร็จ แต่ทดสอบการเชื่อมต่อล้มเหลว<br><span style="font-size:0.78rem;">สามารถกด Verify อีกครั้งได้ในหน้า Accounts</span></div>';
         }
       }
 

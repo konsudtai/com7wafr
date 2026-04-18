@@ -100,7 +100,7 @@ const CostPage = (() => {
     el.innerHTML = `
       ${totalSpend > 0 ? `
       <div class="card mb-24" style="background:linear-gradient(135deg, rgba(201,100,66,0.06), rgba(45,125,70,0.06));">
-        <h3 style="margin-bottom:12px;">💰 Actual Monthly Spend</h3>
+        <h3 style="margin-bottom:12px;">Actual Monthly Spend</h3>
         <p style="font-size:2.2rem; font-weight:600; color:var(--text-primary);">$${totalSpend.toFixed(2)}<span style="font-size:1rem; font-weight:400; color:var(--text-secondary);">/month</span></p>
         <p class="text-secondary" style="font-size:0.82rem;">Period: ${period.start || '?'} to ${period.end || '?'} (unblended cost)</p>
       </div>

@@ -280,17 +280,17 @@ const FindingsPage = (() => {
         <div><strong style="font-size:0.82rem; color:var(--text-secondary);">Service / Region / Account</strong><p>${f.service} · ${f.region} · ${f.account_id || f.account || ''}</p></div>
         <div><strong style="font-size:0.82rem; color:var(--text-secondary);">Description</strong><p style="font-size:0.94rem;">${f.description || ''}</p></div>
         <div style="background:var(--bg-page); border:1px solid var(--border-default); border-radius:var(--radius-md); padding:16px;">
-          <strong style="font-size:0.82rem; color:var(--color-terracotta);">💡 Recommendation</strong>
+          <strong style="font-size:0.82rem; color:var(--color-terracotta);">Recommendation</strong>
           <p style="font-size:0.94rem; margin-top:4px;">${f.recommendation || ''}</p>
         </div>
         <div style="background:var(--bg-page); border:1px solid var(--border-default); border-radius:var(--radius-md); padding:16px;">
-          <strong style="font-size:0.82rem; color:var(--color-success);">🔧 ขั้นตอนการแก้ไข (Remediation Steps)</strong>
+          <strong style="font-size:0.82rem; color:var(--color-success);">Remediation Steps</strong>
           <ol style="margin:8px 0 0 0; padding-left:20px; font-size:0.88rem; line-height:1.8;">
             ${steps.map(s => `<li>${s.replace(/^\d+\.\s*/, '')}</li>`).join('')}
           </ol>
         </div>
         <div style="background:rgba(201,100,66,0.06); border:1px solid rgba(201,100,66,0.15); border-radius:var(--radius-md); padding:16px;">
-          <strong style="font-size:0.82rem; color:var(--color-terracotta);">📋 สิ่งที่ควรทำต่อ (Next Steps)</strong>
+          <strong style="font-size:0.82rem; color:var(--color-terracotta);">Next Steps</strong>
           <ol style="margin:8px 0 0 0; padding-left:20px; font-size:0.88rem; line-height:1.8;">
             <li>ดำเนินการแก้ไขตามขั้นตอนด้านบน</li>
             <li>รัน Scan อีกครั้งเพื่อยืนยันว่า finding นี้ถูกแก้ไขแล้ว</li>
@@ -298,7 +298,7 @@ const FindingsPage = (() => {
             <li>บันทึกการแก้ไขใน Change Management system ขององค์กร</li>
           </ol>
         </div>
-        ${f.documentation_url ? `<div><a href="${f.documentation_url}" target="_blank" rel="noopener noreferrer" style="font-size:0.88rem;">📖 AWS Documentation →</a></div>` : ''}
+        ${f.documentation_url ? `<div><a href="${f.documentation_url}" target="_blank" rel="noopener noreferrer" style="font-size:0.88rem;">AWS Documentation →</a></div>` : ''}
       </div>
     `;
     App.showModal(f.title || 'Finding Detail', body);

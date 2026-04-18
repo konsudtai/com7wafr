@@ -14,21 +14,21 @@ const ServiceDetailPage = (() => {
   let showLowHangingOnly = false;
 
   const SERVICE_META = {
-    ec2:         { name: 'EC2',         icon: '🖥️' },
-    s3:          { name: 'S3',          icon: '🪣' },
-    rds:         { name: 'RDS',         icon: '🗄️' },
-    iam:         { name: 'IAM',         icon: '🔑' },
-    lambda:      { name: 'Lambda',      icon: '⚡' },
-    dynamodb:    { name: 'DynamoDB',    icon: '📊' },
-    elb:         { name: 'ELB',         icon: '⚖️' },
-    cloudfront:  { name: 'CloudFront',  icon: '🌐' },
-    ecs:         { name: 'ECS',         icon: '📦' },
-    eks:         { name: 'EKS',         icon: '☸️' },
-    cloudtrail:  { name: 'CloudTrail',  icon: '📝' },
-    vpc:         { name: 'VPC',         icon: '🔒' },
-    kms:         { name: 'KMS',         icon: '🔐' },
-    cloudwatch:  { name: 'CloudWatch',  icon: '📈' },
-    config:      { name: 'Config',      icon: '⚙️' },
+    ec2:         { name: 'EC2',         icon: '<svg width="20" height="20" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="4" fill="#ED7100" /><text x="20" y="26" text-anchor="middle" fill="#fff" font-size="14" font-weight="bold" font-family="Arial">EC2</text></svg>' },
+    s3:          { name: 'S3',          icon: '<svg width="20" height="20" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="4" fill="#3F8624" /><text x="20" y="26" text-anchor="middle" fill="#fff" font-size="14" font-weight="bold" font-family="Arial">S3</text></svg>' },
+    rds:         { name: 'RDS',         icon: '<svg width="20" height="20" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="4" fill="#3334B9" /><text x="20" y="26" text-anchor="middle" fill="#fff" font-size="12" font-weight="bold" font-family="Arial">RDS</text></svg>' },
+    iam:         { name: 'IAM',         icon: '<svg width="20" height="20" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="4" fill="#DD344C" /><text x="20" y="26" text-anchor="middle" fill="#fff" font-size="12" font-weight="bold" font-family="Arial">IAM</text></svg>' },
+    lambda:      { name: 'Lambda',      icon: '<svg width="20" height="20" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="4" fill="#ED7100" /><text x="20" y="27" text-anchor="middle" fill="#fff" font-size="18" font-weight="bold" font-family="Arial">λ</text></svg>' },
+    dynamodb:    { name: 'DynamoDB',    icon: '<svg width="20" height="20" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="4" fill="#3334B9" /><text x="20" y="26" text-anchor="middle" fill="#fff" font-size="10" font-weight="bold" font-family="Arial">DDB</text></svg>' },
+    elb:         { name: 'ELB',         icon: '<svg width="20" height="20" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="4" fill="#8C4FFF" /><text x="20" y="26" text-anchor="middle" fill="#fff" font-size="12" font-weight="bold" font-family="Arial">ELB</text></svg>' },
+    cloudfront:  { name: 'CloudFront',  icon: '<svg width="20" height="20" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="4" fill="#8C4FFF" /><text x="20" y="26" text-anchor="middle" fill="#fff" font-size="10" font-weight="bold" font-family="Arial">CF</text></svg>' },
+    ecs:         { name: 'ECS',         icon: '<svg width="20" height="20" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="4" fill="#ED7100" /><text x="20" y="26" text-anchor="middle" fill="#fff" font-size="12" font-weight="bold" font-family="Arial">ECS</text></svg>' },
+    eks:         { name: 'EKS',         icon: '<svg width="20" height="20" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="4" fill="#ED7100" /><text x="20" y="26" text-anchor="middle" fill="#fff" font-size="12" font-weight="bold" font-family="Arial">EKS</text></svg>' },
+    cloudtrail:  { name: 'CloudTrail',  icon: '<svg width="20" height="20" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="4" fill="#DD344C" /><text x="20" y="26" text-anchor="middle" fill="#fff" font-size="10" font-weight="bold" font-family="Arial">CT</text></svg>' },
+    vpc:         { name: 'VPC',         icon: '<svg width="20" height="20" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="4" fill="#8C4FFF" /><text x="20" y="26" text-anchor="middle" fill="#fff" font-size="12" font-weight="bold" font-family="Arial">VPC</text></svg>' },
+    kms:         { name: 'KMS',         icon: '<svg width="20" height="20" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="4" fill="#DD344C" /><text x="20" y="26" text-anchor="middle" fill="#fff" font-size="12" font-weight="bold" font-family="Arial">KMS</text></svg>' },
+    cloudwatch:  { name: 'CloudWatch',  icon: '<svg width="20" height="20" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="4" fill="#DD344C" /><text x="20" y="26" text-anchor="middle" fill="#fff" font-size="10" font-weight="bold" font-family="Arial">CW</text></svg>' },
+    config:      { name: 'Config',      icon: '<svg width="20" height="20" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="4" fill="#DD344C" /><text x="20" y="26" text-anchor="middle" fill="#fff" font-size="10" font-weight="bold" font-family="Arial">CFG</text></svg>' },
   };
 
   const SEVERITY_ORDER = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFORMATIONAL: 4 };
@@ -40,13 +40,13 @@ const ServiceDetailPage = (() => {
 
   function render(service) {
     currentService = (service || '').toLowerCase();
-    const meta = SERVICE_META[currentService] || { name: currentService.toUpperCase(), icon: '📋' };
+    const meta = SERVICE_META[currentService] || { name: currentService.toUpperCase(), icon: '<svg width="20" height="20" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="4" fill="#5e5d59" /><text x="20" y="26" text-anchor="middle" fill="#fff" font-size="10" font-weight="bold" font-family="Arial">SVC</text></svg>' };
 
     return `
       <div class="page-header">
         <div class="flex-between">
           <div>
-            <h2>${meta.icon} ${meta.name}</h2>
+            <h2><span style="display:inline-block; vertical-align:middle; margin-right:8px;">${meta.icon}</span>${meta.name}</h2>
             <p>ผลการตรวจสอบ ${meta.name} แยกตาม region พร้อมคำแนะนำ</p>
           </div>
           <a href="#findings" class="btn btn-secondary btn-sm">← Back to Findings</a>
@@ -220,7 +220,7 @@ const ServiceDetailPage = (() => {
     return `
       <div class="card mb-16">
         <h4 style="margin-bottom:12px; padding:8px 12px; background:var(--bg-page); border-radius:var(--radius-sm);">
-          📍 ${region}
+          ${region}
         </h4>
         ${Object.entries(byResource).map(([resourceId, rFindings]) => `
           <div style="margin-bottom:16px; padding-left:12px; border-left:2px solid var(--border-default);">
