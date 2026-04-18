@@ -47,6 +47,36 @@ Resources:
               - Effect: Allow
                 Action: sts:AssumeRole
                 Resource: 'arn:aws:iam::*:role/WAReviewReadOnly'
+        - PolicyName: LambdaSelfInvoke
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:wa-review-scan-handler'
+        - PolicyName: ScanServiceAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:Describe*
+                  - s3:ListBuckets
+                  - s3:GetBucketEncryption
+                  - s3:GetPublicAccessBlock
+                  - rds:DescribeDBInstances
+                  - iam:ListUsers
+                  - iam:ListMFADevices
+                  - lambda:ListFunctions
+                  - dynamodb:ListTables
+                  - dynamodb:DescribeTable
+                  - elasticloadbalancing:Describe*
+                  - cloudfront:List*
+                  - ecs:ListClusters
+                  - ecs:DescribeClusters
+                  - eks:ListClusters
+                  - eks:DescribeCluster
+                Resource: '*'
         - PolicyName: CognitoAccess
           PolicyDocument:
             Version: '2012-10-17'
@@ -65,8 +95,8 @@ Resources:
       Code:
         S3Bucket: !Ref S3BucketName
         S3Key: !Ref LambdaCodeKey
-      MemorySize: 256
-      Timeout: 60
+      MemorySize: 512
+      Timeout: 300
       Role: !GetAtt LambdaRole.Arn
       Environment:
         Variables:
