@@ -72,6 +72,9 @@ const FindingsPage = (() => {
       </div>
 
       <div id="findings-content" class="hidden">
+        <!-- Severity count bar -->
+        <div id="findings-severity-bar" class="card mb-24" style="padding:12px 16px;"></div>
+
         <div class="card mb-24">
           <div class="flex gap-8" style="flex-wrap:wrap; align-items:flex-end;">
             <div class="form-group" style="margin-bottom:0; min-width:140px;">
@@ -133,6 +136,31 @@ const FindingsPage = (() => {
       findings = (data && data.findings) || [];
       if (findings.length === 0) { showEmpty(); return; }
       showContent();
+
+      // Render severity count bar
+      const sevBar = document.getElementById('findings-severity-bar');
+      if (sevBar) {
+        const counts = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFORMATIONAL: 0 };
+        findings.forEach(f => { const s = (f.severity || '').toUpperCase(); if (s in counts) counts[s]++; });
+        const total = findings.length;
+        const colors = { CRITICAL: '#b53333', HIGH: '#d97757', MEDIUM: '#b8860b', LOW: '#2d7d46', INFORMATIONAL: '#5e5d59' };
+        sevBar.innerHTML = `
+          <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+            <span style="font-weight:600; font-size:1.1rem;">${total} Findings</span>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              ${Object.entries(counts).filter(([,v]) => v > 0).map(([sev, count]) =>
+                `<span class="badge" style="background:${colors[sev]}; color:#fff; font-size:0.78rem; padding:3px 10px;">${count} ${sev}</span>`
+              ).join('')}
+            </div>
+            <div style="flex:1; min-width:200px; height:8px; border-radius:4px; overflow:hidden; display:flex;">
+              ${Object.entries(counts).filter(([,v]) => v > 0).map(([sev, count]) =>
+                `<div style="width:${(count/total*100).toFixed(1)}%; background:${colors[sev]}; height:100%;"></div>`
+              ).join('')}
+            </div>
+          </div>
+        `;
+      }
+
       populateFilters();
       applyFilters();
       bindEvents();

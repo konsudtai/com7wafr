@@ -39,38 +39,49 @@ const OverviewPage = (() => {
       </div>
 
       <div id="overview-content" class="hidden">
-        <!-- Severity Summary Cards (Service Screener style) -->
-        <div id="severity-cards" class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); margin-bottom:24px;"></div>
+        <!-- Total Summary Banner -->
+        <div id="total-banner" class="card mb-24" style="padding:20px 24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;"></div>
+
+        <!-- Severity Summary Cards -->
+        <div id="severity-cards" class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); margin-bottom:24px;"></div>
+
+        <!-- Top Issues (quick glance) -->
+        <div id="top-issues" class="card mb-24 hidden"></div>
 
         <!-- Pillar Cards with severity breakdown -->
+        <h3 style="margin-bottom:12px;">Well-Architected Pillars</h3>
         <div id="pillar-cards" class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom:24px;"></div>
 
-        <div class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));">
+        <!-- Charts side by side -->
+        <div class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); margin-bottom:24px;">
           <div class="card">
-            <h3 style="margin-bottom: 12px;">คะแนนตาม Pillar</h3>
-            <div class="chart-container" style="max-width:340px;">
+            <h3 style="margin-bottom:12px;">Pillar Score</h3>
+            <div class="chart-container" style="max-width:300px;">
               <canvas id="radar-chart"></canvas>
             </div>
           </div>
           <div class="card">
-            <h3 style="margin-bottom: 12px;">การกระจายตาม Severity</h3>
-            <div class="chart-container" style="max-width:340px;">
+            <h3 style="margin-bottom:12px;">Severity Distribution</h3>
+            <div class="chart-container" style="max-width:300px;">
               <canvas id="doughnut-chart"></canvas>
             </div>
           </div>
         </div>
 
+        <!-- Heatmap -->
         <div class="card mb-24">
-          <h3 style="margin-bottom: 12px;">Heatmap: Service × Pillar</h3>
+          <h3 style="margin-bottom:12px;">Service x Pillar Heatmap</h3>
           <div style="position:relative; width:100%; max-width:700px;">
             <canvas id="heatmap-chart"></canvas>
           </div>
         </div>
 
-        <h3 style="margin-bottom: 12px;">Services</h3>
-        <div id="service-links" class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom:24px;"></div>
+        <!-- Services -->
+        <h3 style="margin-bottom:12px;">Services Scanned</h3>
+        <div id="service-links" class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); margin-bottom:24px;"></div>
 
-        <h3 style="margin-bottom: 12px;">Account Summary</h3>
+        <!-- Account Summary -->
+        <h3 style="margin-bottom:12px;">Account Summary</h3>
         <div id="account-cards" class="card-grid"></div>
       </div>
     `;
@@ -139,7 +150,30 @@ const OverviewPage = (() => {
     });
     const totalFindings = findings.length;
 
-    // Render severity summary cards (Service Screener style)
+    // Total Summary Banner
+    const bannerEl = document.getElementById('total-banner');
+    if (bannerEl) {
+      const critHigh = (severityCounts.CRITICAL || 0) + (severityCounts.HIGH || 0);
+      const scanDate = data.createdAt || '';
+      const numServices = new Set(findings.map(f => f.service)).size;
+      const numRegions = new Set(findings.map(f => f.region)).size;
+      const numAccounts = new Set(findings.map(f => f.account_id || f.account).filter(Boolean)).size;
+      bannerEl.innerHTML = `
+        <div>
+          <p style="font-size:2rem; font-weight:600; line-height:1;">${totalFindings}</p>
+          <p class="text-secondary" style="font-size:0.82rem;">Total Findings</p>
+        </div>
+        <div style="display:flex; gap:24px; flex-wrap:wrap;">
+          <div style="text-align:center;"><p style="font-size:1.2rem; font-weight:600; color:var(--color-error);">${critHigh}</p><p class="text-secondary" style="font-size:0.72rem;">Critical + High</p></div>
+          <div style="text-align:center;"><p style="font-size:1.2rem; font-weight:600;">${numServices}</p><p class="text-secondary" style="font-size:0.72rem;">Services</p></div>
+          <div style="text-align:center;"><p style="font-size:1.2rem; font-weight:600;">${numRegions}</p><p class="text-secondary" style="font-size:0.72rem;">Regions</p></div>
+          <div style="text-align:center;"><p style="font-size:1.2rem; font-weight:600;">${numAccounts}</p><p class="text-secondary" style="font-size:0.72rem;">Accounts</p></div>
+        </div>
+        ${scanDate ? `<p class="text-secondary" style="font-size:0.75rem;">Last scan: ${scanDate}</p>` : ''}
+      `;
+    }
+
+    // Severity summary cards
     const sevCardsEl = document.getElementById('severity-cards');
     if (sevCardsEl) {
       const sevColors = { CRITICAL: '#b53333', HIGH: '#d97757', MEDIUM: '#b8860b', LOW: '#2d7d46', INFORMATIONAL: '#5e5d59' };
@@ -152,6 +186,32 @@ const OverviewPage = (() => {
             <p class="text-secondary" style="font-size:0.78rem;">(${totalFindings > 0 ? Math.round(count/totalFindings*100) : 0}%)</p>
           </div>
         `).join('');
+    }
+
+    // Top Issues — show top 5 critical/high findings for quick glance
+    const topIssuesEl = document.getElementById('top-issues');
+    if (topIssuesEl) {
+      const critHighFindings = findings
+        .filter(f => f.severity === 'CRITICAL' || f.severity === 'HIGH')
+        .slice(0, 5);
+      if (critHighFindings.length > 0) {
+        topIssuesEl.classList.remove('hidden');
+        topIssuesEl.innerHTML = `
+          <h3 style="margin-bottom:12px;">Top Issues to Address</h3>
+          <div class="table-wrapper"><table>
+            <thead><tr><th style="width:80px;">Severity</th><th>Service</th><th>Issue</th><th>Resource</th></tr></thead>
+            <tbody>
+              ${critHighFindings.map(f => `<tr>
+                <td><span class="badge ${f.severity === 'CRITICAL' ? 'badge-critical' : 'badge-high'}">${f.severity}</span></td>
+                <td>${f.service || ''}</td>
+                <td style="font-size:0.88rem;">${f.title || ''}</td>
+                <td style="font-family:var(--font-mono); font-size:0.78rem; max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${f.resource_id || ''}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table></div>
+          ${findings.filter(f => f.severity === 'CRITICAL' || f.severity === 'HIGH').length > 5 ? `<p class="text-secondary mt-8" style="font-size:0.82rem;"><a href="#findings">View all ${findings.filter(f => f.severity === 'CRITICAL' || f.severity === 'HIGH').length} critical/high findings →</a></p>` : ''}
+        `;
+      }
     }
 
     // Pillar scores + cards
