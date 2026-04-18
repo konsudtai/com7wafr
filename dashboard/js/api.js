@@ -31,8 +31,8 @@ const ApiClient = (() => {
 
     const response = await fetch(url, options);
 
-    // Handle auth errors — redirect to login
-    if (response.status === 401 || response.status === 403) {
+    // Handle auth errors — redirect to login (but not for verify/test endpoints)
+    if (response.status === 401) {
       if (typeof Auth !== 'undefined') {
         Auth.logout();
       }

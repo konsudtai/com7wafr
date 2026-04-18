@@ -218,11 +218,8 @@ echo "============================================================"
   async function init() {
     document.getElementById('btn-add-account')?.addEventListener('click', showAddModal);
     try {
-      // Fetch platform account ID for script generation
-      try {
-        const info = await ApiClient.get('/platform/info');
-        platformAccountId = (info && info.accountId) || '';
-      } catch (_) { /* will ask user to input manually */ }
+      // Get platform account ID from config
+      platformAccountId = (window.WA_CONFIG && window.WA_CONFIG.PLATFORM_ACCOUNT_ID) || '';
 
       const data = await ApiClient.get('/accounts');
       const raw = (data && data.accounts) || [];
@@ -263,6 +260,7 @@ echo "============================================================"
   }
 
   function escapeHtml(str) { return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function API_BASE_URL_RAW() { return ((window.WA_CONFIG && window.WA_CONFIG.API_BASE_URL) || '/api').replace(/\/+$/, ''); }
 
   // --- Modals (Add, Script, Edit, Delete, Verify) ---
 
@@ -492,7 +490,7 @@ echo "============================================================"
         return;
       }
 
-      // Step 2: Verify connectivity
+      // Step 2: Verify connectivity (optional — don't logout on failure)
       btn.textContent = '⏳ กำลังทดสอบการเชื่อมต่อ...';
       if (resultEl) {
         resultEl.classList.remove('hidden');
@@ -500,16 +498,23 @@ echo "============================================================"
       }
 
       try {
-        const result = await ApiClient.post('/accounts/' + wizTargetId + '/verify');
+        const verifyUrl = API_BASE_URL_RAW() + '/accounts/' + wizTargetId + '/verify';
+        const token = typeof Auth !== 'undefined' ? Auth.getIdToken() : null;
+        const verifyResp = await fetch(verifyUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': 'Bearer ' + token } : {}) },
+        });
+        const result = verifyResp.ok ? await verifyResp.json().catch(() => null) : null;
         const connected = result && (result.connectionStatus === 'CONNECTED');
         if (resultEl) {
           resultEl.innerHTML = connected
             ? '<div class="alert alert-success" style="font-size:0.88rem;">✅ บันทึกสำเร็จและเชื่อมต่อได้! พร้อมสำหรับการสแกน</div>'
-            : `<div class="alert alert-warning" style="font-size:0.88rem;">⚠️ บันทึกสำเร็จ แต่ยังเชื่อมต่อไม่ได้ — ${result?.error || 'ตรวจสอบว่ารัน script ใน target account เรียบร้อยแล้ว'}</div>`;
+            : `<div class="alert alert-warning" style="font-size:0.88rem;">⚠️ บันทึกสำเร็จ แต่ยังเชื่อมต่อไม่ได้ — ${(result && result.error) || 'ตรวจสอบว่ารัน script ใน target account เรียบร้อยแล้ว'}<br><span style="font-size:0.78rem;">สามารถกด Verify อีกครั้งได้ในหน้า Accounts</span></div>`;
         }
       } catch (err) {
+        // Network error (CORS, timeout, etc.) — don't logout, just show warning
         if (resultEl) {
-          resultEl.innerHTML = `<div class="alert alert-warning" style="font-size:0.88rem;">⚠️ บันทึกสำเร็จ แต่ทดสอบการเชื่อมต่อล้มเหลว — ${err.message || 'ลอง Verify อีกครั้งในหน้า Accounts'}</div>`;
+          resultEl.innerHTML = '<div class="alert alert-warning" style="font-size:0.88rem;">⚠️ บันทึกสำเร็จ แต่ทดสอบการเชื่อมต่อล้มเหลว<br><span style="font-size:0.78rem;">สามารถกด Verify อีกครั้งได้ในหน้า Accounts</span></div>';
         }
       }
 
@@ -576,7 +581,15 @@ echo "============================================================"
     const btn = document.querySelector(`.btn-verify[data-id="${acct.id}"]`);
     if (!btn) return;
     btn.disabled = true; btn.textContent = 'Verifying...';
-    ApiClient.post('/accounts/' + acct.id + '/verify').then(() => { btn.disabled = false; btn.textContent = 'Verify'; init(); }).catch(() => { btn.disabled = false; btn.textContent = 'Verify'; });
+    const url = API_BASE_URL_RAW() + '/accounts/' + acct.id + '/verify';
+    const token = typeof Auth !== 'undefined' ? Auth.getIdToken() : null;
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': 'Bearer ' + token } : {}) },
+    })
+      .then(r => r.json().catch(() => null))
+      .then(() => { btn.disabled = false; btn.textContent = 'Verify'; init(); })
+      .catch(() => { btn.disabled = false; btn.textContent = 'Verify'; });
   }
 
   return { render, init };
