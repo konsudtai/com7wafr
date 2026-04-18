@@ -87,6 +87,16 @@ Resources:
                   - ec2:DescribeVpcs
                   - ec2:DescribeFlowLogs
                   - ec2:DescribeSecurityGroups
+                  - apigateway:GET
+                  - sqs:ListQueues
+                  - sqs:GetQueueAttributes
+                  - es:ListDomainNames
+                  - es:DescribeDomain
+                  - guardduty:ListDetectors
+                  - guardduty:GetDetector
+                  - elasticfilesystem:DescribeFileSystems
+                  - elasticache:DescribeCacheClusters
+                  - redshift:DescribeClusters
                 Resource: '*'
         - PolicyName: CognitoAccess
           PolicyDocument:

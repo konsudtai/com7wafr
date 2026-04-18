@@ -771,6 +771,128 @@ async function scanService(
         }
         break;
       }
+      case 'apigateway': {
+        const { APIGatewayClient, GetRestApisCommand, GetStagesCommand } = await import('@aws-sdk/client-api-gateway');
+        const apigw = new APIGatewayClient(clientConfig);
+        const apis = await apigw.send(new GetRestApisCommand({ limit: 100 }));
+        for (const api of apis.items ?? []) {
+          try {
+            const stages = await apigw.send(new GetStagesCommand({ restApiId: api.id }));
+            for (const stage of stages.item ?? []) {
+              if (!stage.accessLogSettings?.destinationArn) {
+                findings.push({ finding_id: randomUUID(), account_id: accountId, region, service: 'API Gateway', resource_id: `${api.name}/${stage.stageName}`, check_id: 'apigw-001', pillar: 'Operational Excellence', severity: 'MEDIUM', title: `API Gateway ${api.name} stage ${stage.stageName} has no access logging`, description: 'Access logging is not configured.', recommendation: 'Enable access logging for API Gateway stages.' });
+              }
+              if (!stage.cacheClusterEnabled && !stage.webAclArn) {
+                // Check WAF association via stage tags or web ACL
+              }
+            }
+          } catch { /* stages error */ }
+          if (!api.policy) {
+            findings.push({ finding_id: randomUUID(), account_id: accountId, region, service: 'API Gateway', resource_id: api.name, check_id: 'apigw-002', pillar: 'Security', severity: 'LOW', title: `API Gateway ${api.name} has no resource policy`, description: 'No resource policy configured.', recommendation: 'Add a resource policy to restrict access.' });
+          }
+        }
+        break;
+      }
+      case 'sqs': {
+        const { SQSClient, ListQueuesCommand, GetQueueAttributesCommand } = await import('@aws-sdk/client-sqs');
+        const sqs = new SQSClient(clientConfig);
+        const queues = await sqs.send(new ListQueuesCommand({}));
+        for (const url of queues.QueueUrls ?? []) {
+          const name = url.split('/').pop() || url;
+          try {
+            const attrs = await sqs.send(new GetQueueAttributesCommand({ QueueUrl: url, AttributeNames: ['All'] }));
+            const a = attrs.Attributes || {};
+            if (!a.KmsMasterKeyId && !a.SqsManagedSseEnabled) {
+              findings.push({ finding_id: randomUUID(), account_id: accountId, region, service: 'SQS', resource_id: name, check_id: 'sqs-001', pillar: 'Security', severity: 'MEDIUM', title: `SQS queue ${name} is not encrypted`, description: 'Queue does not use SSE-SQS or SSE-KMS encryption.', recommendation: 'Enable server-side encryption.' });
+            }
+            if (!a.RedrivePolicy) {
+              findings.push({ finding_id: randomUUID(), account_id: accountId, region, service: 'SQS', resource_id: name, check_id: 'sqs-002', pillar: 'Reliability', severity: 'LOW', title: `SQS queue ${name} has no dead-letter queue`, description: 'No redrive policy configured.', recommendation: 'Configure a dead-letter queue for failed messages.' });
+            }
+          } catch { /* attrs error */ }
+        }
+        break;
+      }
+      case 'opensearch': {
+        const { OpenSearchClient, ListDomainNamesCommand, DescribeDomainCommand } = await import('@aws-sdk/client-opensearch');
+        const os = new OpenSearchClient(clientConfig);
+        const domains = await os.send(new ListDomainNamesCommand({}));
+        for (const d of domains.DomainNames ?? []) {
+          try {
+            const desc = await os.send(new DescribeDomainCommand({ DomainName: d.DomainName }));
+            const cfg = desc.DomainStatus;
+            if (!cfg?.EncryptionAtRestOptions?.Enabled) {
+              findings.push({ finding_id: randomUUID(), account_id: accountId, region, service: 'OpenSearch', resource_id: d.DomainName, resource_arn: cfg?.ARN, check_id: 'opensearch-001', pillar: 'Security', severity: 'HIGH', title: `OpenSearch ${d.DomainName} not encrypted at rest`, description: 'Encryption at rest is not enabled.', recommendation: 'Enable encryption at rest.' });
+            }
+            if (!cfg?.NodeToNodeEncryptionOptions?.Enabled) {
+              findings.push({ finding_id: randomUUID(), account_id: accountId, region, service: 'OpenSearch', resource_id: d.DomainName, resource_arn: cfg?.ARN, check_id: 'opensearch-002', pillar: 'Security', severity: 'HIGH', title: `OpenSearch ${d.DomainName} no node-to-node encryption`, description: 'Node-to-node encryption is not enabled.', recommendation: 'Enable node-to-node encryption.' });
+            }
+            if (cfg?.DomainEndpointOptions?.EnforceHTTPS !== true) {
+              findings.push({ finding_id: randomUUID(), account_id: accountId, region, service: 'OpenSearch', resource_id: d.DomainName, resource_arn: cfg?.ARN, check_id: 'opensearch-003', pillar: 'Security', severity: 'HIGH', title: `OpenSearch ${d.DomainName} does not enforce HTTPS`, description: 'HTTPS is not enforced.', recommendation: 'Enable enforce HTTPS.' });
+            }
+          } catch { /* describe error */ }
+        }
+        break;
+      }
+      case 'guardduty': {
+        const { GuardDutyClient, ListDetectorsCommand, GetDetectorCommand } = await import('@aws-sdk/client-guardduty');
+        const gd = new GuardDutyClient(clientConfig);
+        const detectors = await gd.send(new ListDetectorsCommand({}));
+        if (!detectors.DetectorIds?.length) {
+          findings.push({ finding_id: randomUUID(), account_id: accountId, region, service: 'GuardDuty', resource_id: 'GuardDuty', check_id: 'guardduty-001', pillar: 'Security', severity: 'HIGH', title: `GuardDuty is not enabled in ${region}`, description: 'No GuardDuty detector found.', recommendation: 'Enable GuardDuty for threat detection.' });
+        } else {
+          for (const did of detectors.DetectorIds) {
+            try {
+              const det = await gd.send(new GetDetectorCommand({ DetectorId: did }));
+              if (det.Status !== 'ENABLED') {
+                findings.push({ finding_id: randomUUID(), account_id: accountId, region, service: 'GuardDuty', resource_id: did, check_id: 'guardduty-002', pillar: 'Security', severity: 'HIGH', title: `GuardDuty detector ${did} is not active`, description: 'Detector is not in ENABLED status.', recommendation: 'Enable the GuardDuty detector.' });
+              }
+            } catch { /* detector error */ }
+          }
+        }
+        break;
+      }
+      case 'efs': {
+        const { EFSClient, DescribeFileSystemsCommand } = await import('@aws-sdk/client-efs');
+        const efs = new EFSClient(clientConfig);
+        const fsList = await efs.send(new DescribeFileSystemsCommand({}));
+        for (const fs of fsList.FileSystems ?? []) {
+          if (!fs.Encrypted) {
+            findings.push({ finding_id: randomUUID(), account_id: accountId, region, service: 'EFS', resource_id: fs.FileSystemId, resource_arn: fs.FileSystemArn, check_id: 'efs-001', pillar: 'Security', severity: 'HIGH', title: `EFS ${fs.FileSystemId} is not encrypted`, description: 'File system is not encrypted at rest.', recommendation: 'Create a new encrypted EFS file system.' });
+          }
+        }
+        break;
+      }
+      case 'elasticache': {
+        const { ElastiCacheClient, DescribeCacheClustersCommand } = await import('@aws-sdk/client-elasticache');
+        const ec = new ElastiCacheClient(clientConfig);
+        const clusters = await ec.send(new DescribeCacheClustersCommand({ ShowCacheNodeInfo: true }));
+        for (const c of clusters.CacheClusters ?? []) {
+          if (!c.TransitEncryptionEnabled) {
+            findings.push({ finding_id: randomUUID(), account_id: accountId, region, service: 'ElastiCache', resource_id: c.CacheClusterId, check_id: 'elasticache-001', pillar: 'Security', severity: 'HIGH', title: `ElastiCache ${c.CacheClusterId} no transit encryption`, description: 'Encryption in transit is not enabled.', recommendation: 'Enable transit encryption.' });
+          }
+          if (!c.AtRestEncryptionEnabled) {
+            findings.push({ finding_id: randomUUID(), account_id: accountId, region, service: 'ElastiCache', resource_id: c.CacheClusterId, check_id: 'elasticache-002', pillar: 'Security', severity: 'HIGH', title: `ElastiCache ${c.CacheClusterId} no at-rest encryption`, description: 'Encryption at rest is not enabled.', recommendation: 'Enable at-rest encryption.' });
+          }
+        }
+        break;
+      }
+      case 'redshift': {
+        const { RedshiftClient, DescribeClustersCommand: DescribeRedshiftClusters } = await import('@aws-sdk/client-redshift');
+        const rs = new RedshiftClient(clientConfig);
+        const rsClusters = await rs.send(new DescribeRedshiftClusters({}));
+        for (const c of rsClusters.Clusters ?? []) {
+          if (!c.Encrypted) {
+            findings.push({ finding_id: randomUUID(), account_id: accountId, region, service: 'Redshift', resource_id: c.ClusterIdentifier, check_id: 'redshift-001', pillar: 'Security', severity: 'HIGH', title: `Redshift ${c.ClusterIdentifier} not encrypted`, description: 'Cluster is not encrypted at rest.', recommendation: 'Enable encryption at rest.' });
+          }
+          if (c.PubliclyAccessible) {
+            findings.push({ finding_id: randomUUID(), account_id: accountId, region, service: 'Redshift', resource_id: c.ClusterIdentifier, check_id: 'redshift-002', pillar: 'Security', severity: 'CRITICAL', title: `Redshift ${c.ClusterIdentifier} is publicly accessible`, description: 'Cluster is publicly accessible.', recommendation: 'Disable public accessibility.' });
+          }
+          if ((c.AutomatedSnapshotRetentionPeriod ?? 0) < 7) {
+            findings.push({ finding_id: randomUUID(), account_id: accountId, region, service: 'Redshift', resource_id: c.ClusterIdentifier, check_id: 'redshift-003', pillar: 'Reliability', severity: 'MEDIUM', title: `Redshift ${c.ClusterIdentifier} low snapshot retention`, description: `Snapshot retention is ${c.AutomatedSnapshotRetentionPeriod} days.`, recommendation: 'Increase to at least 7 days.' });
+          }
+        }
+        break;
+      }
       default:
         // Other services: no-op for now, can be extended
         break;
