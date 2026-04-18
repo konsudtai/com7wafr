@@ -54,10 +54,15 @@ const CostPage = (() => {
         f.pillar === 'Cost Optimization' || f.pillar === 'Performance Efficiency'
       );
 
-      if (costFindings.length === 0) { showEmpty(); return; }
+      // Separate RI/SP recommendations from regular findings
+      const riFindings = allFindings.filter(f => f.finding_type === 'RI_RECOMMENDATION');
+      const spFindings = allFindings.filter(f => f.finding_type === 'SP_RECOMMENDATION');
+      const regularCostFindings = costFindings.filter(f => !f.finding_type);
 
-      renderContent(allFindings, costFindings, scanId);
-      createCharts(costFindings);
+      if (costFindings.length === 0 && riFindings.length === 0 && spFindings.length === 0) { showEmpty(); return; }
+
+      renderContent(allFindings, regularCostFindings, riFindings, spFindings, scanId);
+      createCharts(regularCostFindings.concat(riFindings).concat(spFindings));
     } catch (err) {
       showEmpty();
     }
@@ -69,7 +74,7 @@ const CostPage = (() => {
     document.getElementById('cost-content')?.classList.add('hidden');
   }
 
-  function renderContent(allFindings, costFindings, scanId) {
+  function renderContent(allFindings, costFindings, riFindings, spFindings, scanId) {
     document.getElementById('cost-loading')?.classList.add('hidden');
     document.getElementById('cost-empty')?.classList.add('hidden');
     const el = document.getElementById('cost-content');
@@ -77,17 +82,19 @@ const CostPage = (() => {
     el.classList.remove('hidden');
 
     // Summary stats
-    const totalAll = allFindings.length;
     const totalCost = costFindings.filter(f => f.pillar === 'Cost Optimization').length;
     const totalPerf = costFindings.filter(f => f.pillar === 'Performance Efficiency').length;
-    const critical = costFindings.filter(f => f.severity === 'CRITICAL').length;
-    const high = costFindings.filter(f => f.severity === 'HIGH').length;
-    const medium = costFindings.filter(f => f.severity === 'MEDIUM').length;
-    const low = costFindings.filter(f => f.severity === 'LOW').length;
+    const totalRI = riFindings.length;
+    const totalSP = spFindings.length;
+    const riSavings = riFindings.reduce((s, f) => s + (f.monthlySavings || 0), 0);
+    const spSavings = spFindings.reduce((s, f) => s + (f.monthlySavings || 0), 0);
+    const allCost = costFindings.concat(riFindings).concat(spFindings);
+    const critical = allCost.filter(f => f.severity === 'CRITICAL').length;
+    const high = allCost.filter(f => f.severity === 'HIGH').length;
 
     // Group by service
     const byService = {};
-    costFindings.forEach(f => {
+    allCost.forEach(f => {
       const svc = f.service || 'Unknown';
       if (!byService[svc]) byService[svc] = [];
       byService[svc].push(f);
@@ -95,31 +102,44 @@ const CostPage = (() => {
 
     // Group by account
     const byAccount = {};
-    costFindings.forEach(f => {
+    allCost.forEach(f => {
       const acct = f.account_id || f.account || 'Unknown';
       if (!byAccount[acct]) byAccount[acct] = [];
       byAccount[acct].push(f);
     });
 
     el.innerHTML = `
-      <div class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom:24px;">
+      <div class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom:24px;">
         <div class="card" style="text-align:center;">
-          <p class="text-secondary" style="font-size:0.82rem;">Cost Optimization Findings</p>
+          <p class="text-secondary" style="font-size:0.82rem;">Cost Findings</p>
           <p style="font-size:1.6rem; font-weight:500; color:var(--color-terracotta);">${totalCost}</p>
         </div>
         <div class="card" style="text-align:center;">
-          <p class="text-secondary" style="font-size:0.82rem;">Performance Findings</p>
+          <p class="text-secondary" style="font-size:0.82rem;">Performance</p>
           <p style="font-size:1.6rem; font-weight:500; color:var(--color-warning);">${totalPerf}</p>
+        </div>
+        <div class="card" style="text-align:center;">
+          <p class="text-secondary" style="font-size:0.82rem;">RI Recommendations</p>
+          <p style="font-size:1.6rem; font-weight:500; color:var(--color-success);">${totalRI}</p>
+          ${riSavings > 0 ? `<p class="text-secondary" style="font-size:0.78rem;">~$${riSavings.toFixed(0)}/mo savings</p>` : ''}
+        </div>
+        <div class="card" style="text-align:center;">
+          <p class="text-secondary" style="font-size:0.82rem;">Savings Plans</p>
+          <p style="font-size:1.6rem; font-weight:500; color:var(--color-success);">${totalSP}</p>
+          ${spSavings > 0 ? `<p class="text-secondary" style="font-size:0.78rem;">~$${spSavings.toFixed(0)}/mo savings</p>` : ''}
         </div>
         <div class="card" style="text-align:center;">
           <p class="text-secondary" style="font-size:0.82rem;">Critical + High</p>
           <p style="font-size:1.6rem; font-weight:500; color:var(--color-error);">${critical + high}</p>
         </div>
-        <div class="card" style="text-align:center;">
-          <p class="text-secondary" style="font-size:0.82rem;">Services Affected</p>
-          <p style="font-size:1.6rem; font-weight:500;">${Object.keys(byService).length}</p>
-        </div>
       </div>
+
+      ${(riSavings + spSavings) > 0 ? `
+      <div class="card mb-24" style="background:linear-gradient(135deg, rgba(45,125,70,0.08), rgba(201,100,66,0.08)); border-color:var(--color-success);">
+        <h3 style="margin-bottom:8px;">💰 Total Estimated Savings</h3>
+        <p style="font-size:2rem; font-weight:600; color:var(--color-success);">$${(riSavings + spSavings).toFixed(2)}<span style="font-size:1rem; font-weight:400;">/month</span></p>
+        <p class="text-secondary" style="font-size:0.88rem;">จาก Reserved Instances ($${riSavings.toFixed(2)}) + Savings Plans ($${spSavings.toFixed(2)})</p>
+      </div>` : ''}
 
       <div class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); margin-bottom:24px;">
         <div class="card">
@@ -132,6 +152,9 @@ const CostPage = (() => {
         </div>
       </div>
 
+      ${riFindings.length > 0 ? renderRISection(riFindings) : ''}
+      ${spFindings.length > 0 ? renderSPSection(spFindings) : ''}
+
       ${renderAccountSections(byAccount)}
 
       <div class="card mb-24">
@@ -139,9 +162,9 @@ const CostPage = (() => {
         <p class="text-secondary mb-16" style="font-size:0.88rem;">จัดลำดับตาม severity — แก้ไข Critical และ High ก่อน</p>
         <div class="table-wrapper">
           <table>
-            <thead><tr><th>Priority</th><th>Severity</th><th>Service</th><th>Resource</th><th>Issue</th><th>Recommendation</th></tr></thead>
+            <thead><tr><th>#</th><th>Severity</th><th>Service</th><th>Resource</th><th>Issue</th><th>Recommendation</th></tr></thead>
             <tbody>
-              ${costFindings
+              ${allCost
                 .sort((a, b) => severityOrder(a.severity) - severityOrder(b.severity))
                 .map((f, i) => `<tr>
                   <td style="font-weight:500;">${i + 1}</td>
@@ -156,6 +179,53 @@ const CostPage = (() => {
         </div>
       </div>
     `;
+  }
+
+  function renderRISection(riFindings) {
+    const totalSavings = riFindings.reduce((s, f) => s + (f.monthlySavings || 0), 0);
+    return `<div class="card mb-24">
+      <div class="flex-between mb-16">
+        <h3>Reserved Instance Recommendations</h3>
+        <span class="badge badge-high" style="font-size:0.88rem;">~$${totalSavings.toFixed(2)}/mo savings</span>
+      </div>
+      <p class="text-secondary mb-16" style="font-size:0.88rem;">Based on your usage patterns. RI purchases provide significant discounts for steady-state workloads.</p>
+      <div class="table-wrapper"><table>
+        <thead><tr><th>Service</th><th>Resource</th><th>Account</th><th>Term</th><th>Est. Monthly Savings</th><th>Recommendation</th></tr></thead>
+        <tbody>
+          ${riFindings.map(f => `<tr>
+            <td>${f.service}</td>
+            <td style="font-family:var(--font-mono); font-size:0.82rem;">${f.resource_id || ''}</td>
+            <td style="font-size:0.82rem;">${f.account_id || ''}</td>
+            <td>${f.term || '1 Year'}</td>
+            <td style="color:var(--color-success); font-weight:500;">$${(f.monthlySavings || 0).toFixed(2)}</td>
+            <td style="font-size:0.88rem;">${f.recommendation || ''}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>
+    </div>`;
+  }
+
+  function renderSPSection(spFindings) {
+    const totalSavings = spFindings.reduce((s, f) => s + (f.monthlySavings || 0), 0);
+    return `<div class="card mb-24">
+      <div class="flex-between mb-16">
+        <h3>Savings Plan Recommendations</h3>
+        <span class="badge badge-high" style="font-size:0.88rem;">~$${totalSavings.toFixed(2)}/mo savings</span>
+      </div>
+      <p class="text-secondary mb-16" style="font-size:0.88rem;">Savings Plans offer flexible pricing in exchange for a commitment to consistent usage.</p>
+      <div class="table-wrapper"><table>
+        <thead><tr><th>Plan Type</th><th>Account</th><th>Term</th><th>Est. Monthly Savings</th><th>Recommendation</th></tr></thead>
+        <tbody>
+          ${spFindings.map(f => `<tr>
+            <td style="font-weight:500;">${f.resource_id || 'Compute SP'}</td>
+            <td style="font-size:0.82rem;">${f.account_id || ''}</td>
+            <td>${f.term || '1 Year'}</td>
+            <td style="color:var(--color-success); font-weight:500;">$${(f.monthlySavings || 0).toFixed(2)}</td>
+            <td style="font-size:0.88rem;">${f.recommendation || ''}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>
+    </div>`;
   }
 
   function renderAccountSections(byAccount) {

@@ -391,6 +391,44 @@ async function runScanAsync(
     }
   }
 
+  // Scan cost recommendations (RI, Savings Plans) — once per account, not per region/service
+  for (const acct of accountConfigs) {
+    try {
+      await updateScanStatus(scanId, 'IN_PROGRESS', 95, {
+        currentService: 'Cost Explorer',
+        currentRegion: acct.accountId,
+      });
+
+      let credentials: { accessKeyId: string; secretAccessKey: string; sessionToken: string } | null = null;
+      try {
+        const assumeResult = await stsClient.send(
+          new AssumeRoleCommand({
+            RoleArn: acct.roleArn,
+            RoleSessionName: `wa-cost-${scanId.substring(0, 8)}`,
+            ExternalId: `wa-review-${acct.accountId}`,
+            DurationSeconds: 900,
+          }),
+        );
+        if (assumeResult.Credentials) {
+          credentials = {
+            accessKeyId: assumeResult.Credentials.AccessKeyId!,
+            secretAccessKey: assumeResult.Credentials.SecretAccessKey!,
+            sessionToken: assumeResult.Credentials.SessionToken!,
+          };
+        }
+      } catch {
+        // Already logged in main scan loop
+      }
+
+      if (credentials) {
+        const costFindings = await scanCostRecommendations(acct.accountId, credentials);
+        findings.push(...costFindings);
+      }
+    } catch (err) {
+      errors.push(`Cost Explorer error for ${acct.accountId}: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+
   // Store findings in DynamoDB
   for (let i = 0; i < findings.length; i++) {
     const finding = findings[i];
@@ -652,6 +690,114 @@ async function scanService(
   } catch (err) {
     console.error(`scanService error for ${service} in ${region} (${accountId}):`, err);
     throw err;
+  }
+
+  return findings;
+}
+
+/**
+ * Scan Cost Explorer for RI and Savings Plan recommendations.
+ */
+async function scanCostRecommendations(
+  accountId: string,
+  credentials: { accessKeyId: string; secretAccessKey: string; sessionToken: string },
+): Promise<Record<string, unknown>[]> {
+  const findings: Record<string, unknown>[] = [];
+  const clientConfig = {
+    region: 'us-east-1', // Cost Explorer is global, use us-east-1
+    credentials: {
+      accessKeyId: credentials.accessKeyId,
+      secretAccessKey: credentials.secretAccessKey,
+      sessionToken: credentials.sessionToken,
+    },
+  };
+
+  try {
+    const { CostExplorerClient, GetReservationPurchaseRecommendationCommand, GetSavingsPlansPurchaseRecommendationCommand } = await import('@aws-sdk/client-cost-explorer');
+    const ce = new CostExplorerClient(clientConfig);
+
+    // RI Recommendations
+    try {
+      for (const service of ['Amazon Elastic Compute Cloud - Compute', 'Amazon Relational Database Service', 'Amazon ElastiCache']) {
+        try {
+          const riResp = await ce.send(new GetReservationPurchaseRecommendationCommand({
+            Service: service,
+            TermInYears: 'ONE_YEAR',
+            PaymentOption: 'PARTIAL_UPFRONT',
+            LookbackPeriodInDays: 'THIRTY_DAYS',
+          }));
+
+          for (const rec of riResp.Recommendations ?? []) {
+            for (const detail of rec.RecommendationDetails ?? []) {
+              const monthlySavings = parseFloat(detail.EstimatedMonthlySavingsAmount ?? '0');
+              if (monthlySavings > 0) {
+                findings.push({
+                  finding_id: randomUUID(),
+                  account_id: accountId,
+                  region: 'global',
+                  service: service.includes('Compute') ? 'EC2' : service.includes('Relational') ? 'RDS' : 'ElastiCache',
+                  resource_id: detail.InstanceDetails?.EC2InstanceDetails?.InstanceType
+                    || detail.InstanceDetails?.RDSInstanceDetails?.DatabaseEngine
+                    || 'RI Recommendation',
+                  pillar: 'Cost Optimization',
+                  severity: monthlySavings > 100 ? 'HIGH' : 'MEDIUM',
+                  title: `RI Recommendation: ${service.split(' - ')[0].replace('Amazon ', '')}`,
+                  description: `Estimated monthly savings: $${monthlySavings.toFixed(2)} with 1-Year Partial Upfront RI.`,
+                  recommendation: `Purchase Reserved Instance to save $${monthlySavings.toFixed(2)}/month.`,
+                  finding_type: 'RI_RECOMMENDATION',
+                  monthlySavings,
+                  term: '1 Year',
+                  paymentOption: 'Partial Upfront',
+                });
+              }
+            }
+          }
+        } catch (err) {
+          // Some services may not have RI recommendations — skip
+          console.log(`No RI recommendations for ${service}: ${err instanceof Error ? err.message : err}`);
+        }
+      }
+    } catch (err) {
+      console.error('RI recommendations error:', err);
+    }
+
+    // Savings Plans Recommendations
+    try {
+      const spResp = await ce.send(new GetSavingsPlansPurchaseRecommendationCommand({
+        SavingsPlansType: 'COMPUTE_SP',
+        TermInYears: 'ONE_YEAR',
+        PaymentOption: 'PARTIAL_UPFRONT',
+        LookbackPeriodInDays: 'THIRTY_DAYS',
+      }));
+
+      const spMeta = spResp.SavingsPlansPurchaseRecommendation;
+      if (spMeta) {
+        const estimatedSavings = parseFloat(spMeta.SavingsPlansPurchaseRecommendationSummary?.EstimatedMonthlySavingsAmount ?? '0');
+        if (estimatedSavings > 0) {
+          findings.push({
+            finding_id: randomUUID(),
+            account_id: accountId,
+            region: 'global',
+            service: 'Savings Plans',
+            resource_id: 'Compute Savings Plan',
+            pillar: 'Cost Optimization',
+            severity: estimatedSavings > 200 ? 'HIGH' : 'MEDIUM',
+            title: 'Savings Plan Recommendation: Compute SP',
+            description: `Estimated monthly savings: $${estimatedSavings.toFixed(2)} with 1-Year Compute Savings Plan.`,
+            recommendation: `Purchase Compute Savings Plan (commitment: $${spMeta.SavingsPlansPurchaseRecommendationSummary?.HourlyCommitmentToPurchase ?? 'N/A'}/hr) to save $${estimatedSavings.toFixed(2)}/month.`,
+            finding_type: 'SP_RECOMMENDATION',
+            monthlySavings: estimatedSavings,
+            term: '1 Year',
+            paymentOption: 'Partial Upfront',
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Savings Plans recommendations error:', err);
+    }
+
+  } catch (err) {
+    console.error('Cost Explorer client error:', err);
   }
 
   return findings;
