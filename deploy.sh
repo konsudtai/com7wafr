@@ -145,7 +145,12 @@ EOF
 
 # Add config.js to index.html if needed
 if ! grep -q 'config.js' "$SCRIPT_DIR/dashboard/index.html"; then
-  sed -i 's|<script src="js/auth.js"></script>|<script src="js/config.js"></script>\n  <script src="js/auth.js"></script>|' "$SCRIPT_DIR/dashboard/index.html"
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    sed -i '' 's|<script src="js/auth.js"></script>|<script src="js/config.js"></script>\
+  <script src="js/auth.js"></script>|' "$SCRIPT_DIR/dashboard/index.html"
+  else
+    sed -i 's|<script src="js/auth.js"></script>|<script src="js/config.js"></script>\n  <script src="js/auth.js"></script>|' "$SCRIPT_DIR/dashboard/index.html"
+  fi
 fi
 
 aws s3 sync "$SCRIPT_DIR/dashboard" "s3://$BUCKET_NAME" --exclude "node_modules/*" --exclude "src/*" --delete $PROF_ARG --quiet

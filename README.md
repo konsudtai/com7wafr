@@ -6,19 +6,19 @@ Automated platform for scanning and evaluating AWS environments against the 5 pi
 
 ## Quick Start — One Command Deployment
 
-Open **AWS CloudShell** and run:
+Open **AWS CloudShell** in the AWS account where you want to host the platform, then run:
 
-**First time:**
+**First time (new account):**
 ```bash
 git clone https://github.com/konsudtai/com7wafr.git && cd com7wafr && chmod +x deploy.sh && ./deploy.sh --region ap-southeast-1 --admin-email admin@yourcompany.com
 ```
 
-**Re-deploy (update):**
+**Re-deploy (update existing):**
 ```bash
-cd com7wafr && git pull && ./deploy.sh --region ap-southeast-1 --admin-email admin@yourcompany.com
+cd com7wafr && git pull && chmod +x deploy.sh && ./deploy.sh --region ap-southeast-1 --admin-email admin@yourcompany.com
 ```
 
-**Re-deploy (clean):**
+**Re-deploy (clean install):**
 ```bash
 rm -rf com7wafr && git clone https://github.com/konsudtai/com7wafr.git && cd com7wafr && chmod +x deploy.sh && ./deploy.sh --region ap-southeast-1 --admin-email admin@yourcompany.com
 ```
@@ -27,6 +27,7 @@ The script deploys the entire platform in approximately 10 minutes and outputs t
 
 > Replace `admin@yourcompany.com` with the actual admin email. A temporary password will be sent to this email.
 > Replace `ap-southeast-1` with your preferred AWS region.
+> Each AWS account gets its own independent platform instance. You can deploy to multiple accounts.
 
 ---
 
@@ -560,17 +561,19 @@ Optional (for Lambda TypeScript build):
 
 ### One-Command Deployment (CloudShell)
 
-**First time:**
+Open **AWS CloudShell** in the AWS account where you want to host the platform.
+
+**First time (new account):**
 ```bash
 git clone https://github.com/konsudtai/com7wafr.git && cd com7wafr && chmod +x deploy.sh && ./deploy.sh --region ap-southeast-1 --admin-email admin@yourcompany.com
 ```
 
-**Re-deploy (update):**
+**Re-deploy (update existing):**
 ```bash
-cd com7wafr && git pull && ./deploy.sh --region ap-southeast-1 --admin-email admin@yourcompany.com
+cd com7wafr && git pull && chmod +x deploy.sh && ./deploy.sh --region ap-southeast-1 --admin-email admin@yourcompany.com
 ```
 
-**Re-deploy (clean):**
+**Re-deploy (clean install):**
 ```bash
 rm -rf com7wafr && git clone https://github.com/konsudtai/com7wafr.git && cd com7wafr && chmod +x deploy.sh && ./deploy.sh --region ap-southeast-1 --admin-email admin@yourcompany.com
 ```
@@ -621,10 +624,10 @@ rm -rf com7wafr && git clone https://github.com/konsudtai/com7wafr.git && cd com
 
 ### Updating
 
-Re-run the deploy script to update:
+Pull latest code and re-deploy:
 
 ```bash
-./deploy.sh
+cd com7wafr && git pull && chmod +x deploy.sh && ./deploy.sh --region ap-southeast-1 --admin-email admin@yourcompany.com
 ```
 
 Or update dashboard only:
