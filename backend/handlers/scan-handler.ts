@@ -695,16 +695,17 @@ async function scanService(
   return findings;
 }
 
+
 /**
- * Scan Cost Explorer for RI and Savings Plan recommendations.
+ * Scan Cost Explorer for actual spend, RI and Savings Plan recommendations.
  */
 async function scanCostRecommendations(
   accountId: string,
   credentials: { accessKeyId: string; secretAccessKey: string; sessionToken: string },
 ): Promise<Record<string, unknown>[]> {
   const findings: Record<string, unknown>[] = [];
-  const clientConfig = {
-    region: 'us-east-1', // Cost Explorer is global, use us-east-1
+  const ceCfg = {
+    region: 'us-east-1',
     credentials: {
       accessKeyId: credentials.accessKeyId,
       secretAccessKey: credentials.secretAccessKey,
@@ -713,96 +714,146 @@ async function scanCostRecommendations(
   };
 
   try {
-    const { CostExplorerClient, GetReservationPurchaseRecommendationCommand, GetSavingsPlansPurchaseRecommendationCommand } = await import('@aws-sdk/client-cost-explorer');
-    const ce = new CostExplorerClient(clientConfig);
+    const {
+      CostExplorerClient,
+      GetCostAndUsageCommand,
+      GetReservationPurchaseRecommendationCommand,
+      GetSavingsPlansPurchaseRecommendationCommand,
+    } = await import('@aws-sdk/client-cost-explorer');
+    const ce = new CostExplorerClient(ceCfg);
 
-    // RI Recommendations
+    // --- 1. Actual Cost and Usage (last 30 days by service) ---
     try {
-      for (const service of ['Amazon Elastic Compute Cloud - Compute', 'Amazon Relational Database Service', 'Amazon ElastiCache']) {
-        try {
-          const riResp = await ce.send(new GetReservationPurchaseRecommendationCommand({
-            Service: service,
-            TermInYears: 'ONE_YEAR',
-            PaymentOption: 'PARTIAL_UPFRONT',
-            LookbackPeriodInDays: 'THIRTY_DAYS',
-          }));
+      const now = new Date();
+      const end = now.toISOString().split('T')[0];
+      const start = new Date(now.getTime() - 30 * 86400000).toISOString().split('T')[0];
 
-          for (const rec of riResp.Recommendations ?? []) {
-            for (const detail of rec.RecommendationDetails ?? []) {
-              const monthlySavings = parseFloat(detail.EstimatedMonthlySavingsAmount ?? '0');
-              if (monthlySavings > 0) {
-                findings.push({
-                  finding_id: randomUUID(),
-                  account_id: accountId,
-                  region: 'global',
-                  service: service.includes('Compute') ? 'EC2' : service.includes('Relational') ? 'RDS' : 'ElastiCache',
-                  resource_id: detail.InstanceDetails?.EC2InstanceDetails?.InstanceType
-                    || detail.InstanceDetails?.RDSInstanceDetails?.DatabaseEngine
-                    || 'RI Recommendation',
-                  pillar: 'Cost Optimization',
-                  severity: monthlySavings > 100 ? 'HIGH' : 'MEDIUM',
-                  title: `RI Recommendation: ${service.split(' - ')[0].replace('Amazon ', '')}`,
-                  description: `Estimated monthly savings: $${monthlySavings.toFixed(2)} with 1-Year Partial Upfront RI.`,
-                  recommendation: `Purchase Reserved Instance to save $${monthlySavings.toFixed(2)}/month.`,
-                  finding_type: 'RI_RECOMMENDATION',
-                  monthlySavings,
-                  term: '1 Year',
-                  paymentOption: 'Partial Upfront',
-                });
-              }
-            }
-          }
-        } catch (err) {
-          // Some services may not have RI recommendations — skip
-          console.log(`No RI recommendations for ${service}: ${err instanceof Error ? err.message : err}`);
-        }
-      }
-    } catch (err) {
-      console.error('RI recommendations error:', err);
-    }
-
-    // Savings Plans Recommendations
-    try {
-      const spResp = await ce.send(new GetSavingsPlansPurchaseRecommendationCommand({
-        SavingsPlansType: 'COMPUTE_SP',
-        TermInYears: 'ONE_YEAR',
-        PaymentOption: 'PARTIAL_UPFRONT',
-        LookbackPeriodInDays: 'THIRTY_DAYS',
+      const costResp = await ce.send(new GetCostAndUsageCommand({
+        TimePeriod: { Start: start, End: end },
+        Granularity: 'MONTHLY',
+        Metrics: ['UnblendedCost'],
+        GroupBy: [{ Type: 'DIMENSION', Key: 'SERVICE' }],
       }));
 
-      const spMeta = spResp.SavingsPlansPurchaseRecommendation;
-      if (spMeta) {
-        const estimatedSavings = parseFloat(spMeta.SavingsPlansPurchaseRecommendationSummary?.EstimatedMonthlySavingsAmount ?? '0');
-        if (estimatedSavings > 0) {
+      let totalSpend = 0;
+      const svcSpend: { service: string; amount: number }[] = [];
+      for (const r of costResp.ResultsByTime ?? []) {
+        for (const g of r.Groups ?? []) {
+          const amount = parseFloat(g.Metrics?.UnblendedCost?.Amount ?? '0');
+          if (amount > 0.01) {
+            svcSpend.push({ service: g.Keys?.[0] ?? 'Unknown', amount });
+            totalSpend += amount;
+          }
+        }
+      }
+      svcSpend.sort((a, b) => b.amount - a.amount);
+
+      findings.push({
+        finding_id: randomUUID(), account_id: accountId, region: 'global',
+        service: 'Cost Explorer', resource_id: 'Monthly Cost Summary',
+        pillar: 'Cost Optimization', severity: 'INFORMATIONAL',
+        title: `Monthly spend: $${totalSpend.toFixed(2)} (${start} to ${end})`,
+        description: 'Total unblended cost for the last 30 days across all services.',
+        recommendation: 'Review top spending services for optimization opportunities.',
+        finding_type: 'COST_USAGE', totalSpend, period: { start, end }, serviceBreakdown: svcSpend,
+      });
+
+      for (const s of svcSpend.slice(0, 10)) {
+        if (s.amount < 1) continue;
+        const pct = ((s.amount / totalSpend) * 100).toFixed(1);
+        const short = costSimplifyName(s.service);
+        findings.push({
+          finding_id: randomUUID(), account_id: accountId, region: 'global',
+          service: short, resource_id: s.service, pillar: 'Cost Optimization',
+          severity: s.amount > totalSpend * 0.3 ? 'HIGH' : s.amount > totalSpend * 0.1 ? 'MEDIUM' : 'LOW',
+          title: `${short}: $${s.amount.toFixed(2)}/mo (${pct}% of total)`,
+          description: `Actual spend: $${s.amount.toFixed(2)} in the last 30 days.`,
+          recommendation: costOptimizationTip(s.service),
+          finding_type: 'COST_OPTIMIZATION', actualSpend: s.amount, spendPercentage: parseFloat(pct),
+        });
+      }
+    } catch (err) { console.error('GetCostAndUsage error:', err); }
+
+    // --- 2. RI Recommendations ---
+    for (const svc of ['Amazon Elastic Compute Cloud - Compute', 'Amazon Relational Database Service', 'Amazon ElastiCache']) {
+      try {
+        const riR = await ce.send(new GetReservationPurchaseRecommendationCommand({
+          Service: svc, TermInYears: 'ONE_YEAR', PaymentOption: 'PARTIAL_UPFRONT', LookbackPeriodInDays: 'THIRTY_DAYS',
+        }));
+        for (const rec of riR.Recommendations ?? []) {
+          for (const d of rec.RecommendationDetails ?? []) {
+            const sv = parseFloat(d.EstimatedMonthlySavingsAmount ?? '0');
+            if (sv > 0) {
+              const sh = svc.includes('Compute') ? 'EC2' : svc.includes('Relational') ? 'RDS' : 'ElastiCache';
+              const it = d.InstanceDetails?.EC2InstanceDetails?.InstanceType || d.InstanceDetails?.RDSInstanceDetails?.DatabaseEngine || 'N/A';
+              findings.push({
+                finding_id: randomUUID(), account_id: accountId,
+                region: d.InstanceDetails?.EC2InstanceDetails?.Region || 'global',
+                service: sh, resource_id: it, pillar: 'Cost Optimization',
+                severity: sv > 100 ? 'HIGH' : 'MEDIUM',
+                title: `RI: ${sh} ${it} - save $${sv.toFixed(2)}/mo`,
+                description: `Estimated savings: $${sv.toFixed(2)}/mo with 1-Year Partial Upfront RI.`,
+                recommendation: `Purchase RI for ${sh} (${it}) to save $${sv.toFixed(2)}/month.`,
+                finding_type: 'RI_RECOMMENDATION', monthlySavings: sv, term: '1 Year', paymentOption: 'Partial Upfront',
+              });
+            }
+          }
+        }
+      } catch (err) { console.log(`No RI for ${svc}: ${err instanceof Error ? err.message : err}`); }
+    }
+
+    // --- 3. Savings Plans Recommendations ---
+    try {
+      const spR = await ce.send(new GetSavingsPlansPurchaseRecommendationCommand({
+        SavingsPlansType: 'COMPUTE_SP', TermInYears: 'ONE_YEAR', PaymentOption: 'PARTIAL_UPFRONT', LookbackPeriodInDays: 'THIRTY_DAYS',
+      }));
+      const m = spR.SavingsPlansPurchaseRecommendation;
+      if (m) {
+        const sv = parseFloat(m.SavingsPlansPurchaseRecommendationSummary?.EstimatedMonthlySavingsAmount ?? '0');
+        const cm = m.SavingsPlansPurchaseRecommendationSummary?.HourlyCommitmentToPurchase ?? '0';
+        const od = parseFloat(m.SavingsPlansPurchaseRecommendationSummary?.CurrentOnDemandSpend ?? '0');
+        if (sv > 0) {
           findings.push({
-            finding_id: randomUUID(),
-            account_id: accountId,
-            region: 'global',
-            service: 'Savings Plans',
-            resource_id: 'Compute Savings Plan',
-            pillar: 'Cost Optimization',
-            severity: estimatedSavings > 200 ? 'HIGH' : 'MEDIUM',
-            title: 'Savings Plan Recommendation: Compute SP',
-            description: `Estimated monthly savings: $${estimatedSavings.toFixed(2)} with 1-Year Compute Savings Plan.`,
-            recommendation: `Purchase Compute Savings Plan (commitment: $${spMeta.SavingsPlansPurchaseRecommendationSummary?.HourlyCommitmentToPurchase ?? 'N/A'}/hr) to save $${estimatedSavings.toFixed(2)}/month.`,
-            finding_type: 'SP_RECOMMENDATION',
-            monthlySavings: estimatedSavings,
-            term: '1 Year',
-            paymentOption: 'Partial Upfront',
+            finding_id: randomUUID(), account_id: accountId, region: 'global',
+            service: 'Savings Plans', resource_id: 'Compute Savings Plan',
+            pillar: 'Cost Optimization', severity: sv > 200 ? 'HIGH' : 'MEDIUM',
+            title: `SP: Save $${sv.toFixed(2)}/mo`,
+            description: `Current on-demand: $${od.toFixed(2)}/mo. Savings: $${sv.toFixed(2)}/mo with Compute SP.`,
+            recommendation: `Purchase Compute SP ($${cm}/hr, 1-Year) to save $${sv.toFixed(2)}/month.`,
+            finding_type: 'SP_RECOMMENDATION', monthlySavings: sv, currentOnDemandSpend: od,
+            hourlyCommitment: parseFloat(cm), term: '1 Year', paymentOption: 'Partial Upfront',
           });
         }
       }
-    } catch (err) {
-      console.error('Savings Plans recommendations error:', err);
-    }
+    } catch (err) { console.error('SP recommendations error:', err); }
 
-  } catch (err) {
-    console.error('Cost Explorer client error:', err);
-  }
-
+  } catch (err) { console.error('Cost Explorer client error:', err); }
   return findings;
 }
 
+function costSimplifyName(n: string): string {
+  const m: Record<string, string> = {
+    'Amazon Elastic Compute Cloud - Compute': 'EC2', 'Amazon Simple Storage Service': 'S3',
+    'Amazon Relational Database Service': 'RDS', 'Amazon DynamoDB': 'DynamoDB', 'AWS Lambda': 'Lambda',
+    'Amazon CloudFront': 'CloudFront', 'Elastic Load Balancing': 'ELB', 'Amazon CloudWatch': 'CloudWatch',
+    'Amazon API Gateway': 'API Gateway', 'AWS Data Transfer': 'Data Transfer',
+  };
+  return m[n] || n.replace(/^Amazon\s+/, '').replace(/^AWS\s+/, '');
+}
+
+function costOptimizationTip(n: string): string {
+  const l = n.toLowerCase();
+  if (l.includes('ec2') || l.includes('compute')) return 'Right-size instances, use Spot/RI/Savings Plans, stop idle instances.';
+  if (l.includes('rds') || l.includes('relational')) return 'Use RI for steady databases. Review Multi-AZ for non-prod. Consider Aurora Serverless.';
+  if (l.includes('s3') || l.includes('storage')) return 'Add lifecycle policies (Glacier/Deep Archive). Enable Intelligent-Tiering.';
+  if (l.includes('lambda')) return 'Optimize memory with Power Tuning. Batch invocations.';
+  if (l.includes('dynamodb')) return 'Switch to on-demand for variable workloads. Use Reserved Capacity for steady.';
+  if (l.includes('nat gateway')) return 'Use VPC endpoints for S3/DynamoDB to reduce NAT traffic.';
+  if (l.includes('cloudwatch')) return 'Review log retention, reduce custom metrics.';
+  if (l.includes('cloudfront') || l.includes('data transfer')) return 'Optimize cache TTL, use price class, compress content.';
+  if (l.includes('elastic load') || l.includes('elb')) return 'Consolidate LBs, remove idle ones.';
+  return 'Review usage patterns and consider Reserved pricing if usage is steady.';
+}
 /**
  * GET /scans/{id}/status — Return scan status with progress.
  */
