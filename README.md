@@ -29,6 +29,11 @@ The script deploys the entire platform in approximately 10 minutes and outputs t
 > Replace `ap-southeast-1` with your preferred AWS region.
 > Each AWS account gets its own independent platform instance. You can deploy to multiple accounts.
 
+**Destroy (remove all stacks):**
+```bash
+cd com7wafr && chmod +x deploy.sh && ./deploy.sh --destroy
+```
+
 ---
 
 ## Table of Contents

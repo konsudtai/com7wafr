@@ -660,7 +660,7 @@ Resources:
   # CloudFormation to create a new deployment on every update.
   # Bump the suffix (v2, v3, ...) whenever API routes change.
   # ============================================================
-  ApiDeploymentV3:
+  ApiDeploymentV4:
     Type: AWS::ApiGateway::Deployment
     DependsOn:
       - GatewayResponseDefault4XX
@@ -694,7 +694,7 @@ Resources:
     Type: AWS::ApiGateway::Stage
     Properties:
       RestApiId: !Ref Api
-      DeploymentId: !Ref ApiDeploymentV3
+      DeploymentId: !Ref ApiDeploymentV4
       StageName: prod
 
   # ============================================================
