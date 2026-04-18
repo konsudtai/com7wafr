@@ -1614,3 +1614,59 @@ What makes Claude's design truly distinctive is its warm neutral palette. Every 
 6. Specify the warm background — "on Parchment (#f5f4ed)" or "on Near Black (#141413)"
 7. Keep illustrations organic and conceptual — describe "hand-drawn-feeling" style
 
+
+
+---
+
+## Phase 3: Compliance Frameworks & Enhanced Scanning
+
+### Framework System Architecture
+```
+frameworks/
+├── cis-aws/mapping.yaml        # CIS AWS Foundations Benchmark v1.4
+├── nist-csf/mapping.yaml       # NIST Cybersecurity Framework
+├── soc2/mapping.yaml           # SOC 2 Trust Services Criteria
+└── wafs/mapping.yaml           # Well-Architected Framework Security
+```
+
+Each mapping.yaml structure:
+```yaml
+metadata:
+  id: cis-aws
+  name: CIS AWS Foundations Benchmark
+  version: "1.4"
+  description: Security configuration best practices for AWS
+
+controls:
+  - control_id: "IAM.5"
+    title: "Ensure MFA is enabled for all IAM users"
+    section: "Identity and Access Management"
+    check_ids: [iam-003]
+```
+
+### New Service Checks
+- checks/cloudtrail/ — 4 checks (multi-region trail, KMS, log validation, S3 block)
+- checks/vpc/ — 3 checks (flow logs, default SG, NACL)
+- checks/kms/ — 2 checks (key rotation, key policy)
+- checks/cloudwatch/ — 2 checks (log retention, alarms)
+- checks/config_/ — 1 check (Config enabled)
+
+### Backend: scan-handler.ts additions
+- Add scanService cases for: cloudtrail, vpc, kms, cloudwatch, config
+- Each uses assumed credentials to call describe/list APIs
+- Add IAM permissions in cfn/api.yaml for new services
+
+### Frontend: New Compliance Page
+- dashboard/js/pages/compliance.js
+- Loads framework YAML files from S3 (uploaded during deploy)
+- Maps check_ids to scan findings to determine pass/fail
+- Shows framework tabs, overall %, control table
+
+### Frontend: Overview Enhancement
+- Severity summary cards (4 cards with count + %)
+- Pillar cards with severity breakdown bars
+- High Risk by Region/Service charts
+
+### CloudFinOps Rename
+- Sidebar nav: "Cost Advisor" → "CloudFinOps"
+- Page header and README updates

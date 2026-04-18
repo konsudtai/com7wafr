@@ -372,3 +372,54 @@
 - Unit tests ตรวจสอบ specific examples และ edge cases
 - **ไม่มีการ deploy จริง** — เน้นสร้างโค้ดที่สามารถ review ด้วย `cdk synth` ได้
 - ภาษาที่ใช้ implement: Python (CLI, backend, CDK), JavaScript (Dashboard frontend)
+
+
+---
+
+## Phase 3: Compliance Frameworks & Enhanced Service Scanning
+
+### 3.1 New Check Definitions & Scanner Functions
+- [ ] 3.1.1 Create checks/cloudtrail/checks.yaml + __init__.py (4 checks)
+- [ ] 3.1.2 Create checks/vpc/checks.yaml + __init__.py (3 checks)
+- [ ] 3.1.3 Create checks/kms/checks.yaml + __init__.py (2 checks)
+- [ ] 3.1.4 Create checks/cloudwatch_/checks.yaml + __init__.py (2 checks)
+- [ ] 3.1.5 Create checks/config_/checks.yaml + __init__.py (1 check)
+- [ ] 3.1.6 Add scanner functions in scan-handler.ts for: cloudtrail, vpc, kms, cloudwatch, config
+- [ ] 3.1.7 Add IAM permissions in cfn/api.yaml for new services
+- [ ] 3.1.8 Update scan.js service checkboxes to include new services
+
+### 3.2 Framework Definitions
+- [ ] 3.2.1 Create frameworks/ directory structure
+- [ ] 3.2.2 Create frameworks/cis-aws/mapping.yaml (CIS AWS Foundations)
+- [ ] 3.2.3 Create frameworks/nist-csf/mapping.yaml (NIST Cybersecurity Framework)
+- [ ] 3.2.4 Create frameworks/soc2/mapping.yaml (SOC 2 Trust Services)
+- [ ] 3.2.5 Create frameworks/wafs/mapping.yaml (Well-Architected Framework)
+- [ ] 3.2.6 Upload framework files to S3 during deploy (update deploy.sh)
+
+### 3.3 Compliance Dashboard Page
+- [ ] 3.3.1 Create dashboard/js/pages/compliance.js
+- [ ] 3.3.2 Add Compliance nav item in index.html + app.js routing
+- [ ] 3.3.3 Framework selector (tabs)
+- [ ] 3.3.4 Overall compliance % per framework with progress bar
+- [ ] 3.3.5 Control table with pass/fail/N/A status badges
+- [ ] 3.3.6 Drill-down: click control → show related findings in modal
+
+### 3.4 Overview Page Enhancement
+- [ ] 3.4.1 Severity summary cards (High/Medium/Low/Info with count + %)
+- [ ] 3.4.2 Pillar cards with severity breakdown bars
+- [ ] 3.4.3 High Risk by Region chart (bar chart)
+- [ ] 3.4.4 High Risk by Service chart (bar chart)
+- [ ] 3.4.5 Service × Region heatmap (keep existing, enhance)
+
+### 3.5 CloudFinOps Rename
+- [ ] 3.5.1 Rename Cost Advisor → CloudFinOps in sidebar nav (index.html)
+- [ ] 3.5.2 Rename in app.js routing
+- [ ] 3.5.3 Rename in cost.js page header
+- [ ] 3.5.4 Update README.md references
+
+### 3.6 Deploy & Test
+- [ ] 3.6.1 Build backend, deploy to account 590184103886
+- [ ] 3.6.2 Run scan with new services
+- [ ] 3.6.3 Verify compliance page with framework data
+- [ ] 3.6.4 Verify overview page enhancements
+- [ ] 3.6.5 Push to git

@@ -297,3 +297,54 @@
 10. THE Team_Manager SHALL ตรวจสอบว่าต้องมี Admin อย่างน้อยหนึ่งคนในระบบเสมอ
 11. WHILE ผู้ใช้มี User_Role เป็น Viewer, THE Dashboard SHALL ซ่อนหน้า Team Management และเมนูที่เกี่ยวข้องกับการจัดการทีม
 12. THE API_Backend SHALL จัดเตรียม REST API endpoints สำหรับ: เพิ่มสมาชิก (POST /team/members), ลบสมาชิก (DELETE /team/members/{email}), แก้ไข role (PUT /team/members/{email}/role), และดูรายการสมาชิก (GET /team/members)
+
+### Requirement 21: Compliance Frameworks Mapping
+
+**User Story:** ในฐานะ Security Auditor ฉันต้องการดูผลการตรวจสอบที่ map กับ compliance frameworks มาตรฐาน (CIS, NIST, SOC2) เพื่อให้สามารถประเมิน compliance status ขององค์กรได้
+
+#### Acceptance Criteria
+
+1. THE Review_Tool SHALL รองรับ compliance framework definitions เป็น YAML files ใน `frameworks/` directory
+2. THE Review_Tool SHALL รองรับ frameworks อย่างน้อย: CIS AWS Foundations Benchmark, NIST Cybersecurity Framework, SOC 2 Trust Services, Well-Architected Framework Security
+3. EACH framework definition SHALL ประกอบด้วย metadata (id, name, version, description) และ mapping ของ control_id → check_ids
+4. THE Dashboard SHALL มีหน้า Compliance ที่แสดง compliance status ต่อ framework
+5. FOR EACH framework, THE Dashboard SHALL แสดง overall compliance percentage, จำนวน controls ที่ pass/fail/not-applicable
+6. WHEN ผู้ใช้คลิกที่ control, THE Dashboard SHALL แสดง related findings ที่เกี่ยวข้อง
+7. THE framework system SHALL เป็น plugin-based — เพิ่ม framework ใหม่ได้โดยไม่ต้องแก้ core code
+
+### Requirement 22: Enhanced Service Scanning
+
+**User Story:** ในฐานะ Cloud Engineer ฉันต้องการสแกน AWS services เพิ่มเติม (CloudTrail, VPC, KMS, CloudWatch, Config) เพื่อให้ครอบคลุมการตรวจสอบ security และ compliance ได้ครบถ้วนมากขึ้น
+
+#### Acceptance Criteria
+
+1. THE Scanner SHALL รองรับ services เพิ่มเติม: CloudTrail, VPC, KMS, CloudWatch, AWS Config
+2. CloudTrail checks SHALL ตรวจสอบ: multi-region trail enabled, KMS encryption, log file validation, S3 bucket public access blocked
+3. VPC checks SHALL ตรวจสอบ: flow logs enabled, default security group restricts all traffic, NACL ไม่อนุญาต unrestricted SSH/RDP
+4. KMS checks SHALL ตรวจสอบ: key rotation enabled, key policy ไม่มี wildcard principal
+5. CloudWatch checks SHALL ตรวจสอบ: log groups มี retention policy, metric alarms configured
+6. AWS Config checks SHALL ตรวจสอบ: Config enabled ใน region
+7. EACH new check SHALL มี check definition เป็น YAML file ใน `checks/{service}/` directory
+8. THE scan-handler.ts SHALL มี scanner functions สำหรับ services ใหม่ทั้งหมด
+
+### Requirement 23: Overview Page Enhancement (Service Screener Style)
+
+**User Story:** ในฐานะ Solutions Architect ฉันต้องการ Overview page ที่แสดงข้อมูลสรุปแบบ Service Screener v2 เพื่อให้เห็นภาพรวมของ findings ได้ชัดเจนขึ้น
+
+#### Acceptance Criteria
+
+1. THE Dashboard Overview SHALL แสดง severity summary cards (High/Medium/Low/Informational) พร้อม count และ percentage
+2. THE Dashboard Overview SHALL แสดง pillar cards (5 pillars) พร้อม severity breakdown bars ภายในแต่ละ card
+3. THE Dashboard Overview SHALL แสดง chart: High Risk findings grouped by Region
+4. THE Dashboard Overview SHALL แสดง chart: High Risk findings grouped by Service
+5. THE Dashboard Overview SHALL แสดง heatmap: Service × Region matrix
+6. THE Dashboard Overview SHALL คง design theme เดิม (warm parchment theme)
+
+### Requirement 24: CloudFinOps (Rename Cost Advisor)
+
+**User Story:** ในฐานะ FinOps Engineer ฉันต้องการให้หน้า Cost Advisor เปลี่ยนชื่อเป็น CloudFinOps เพื่อให้สอดคล้องกับ branding ขององค์กร
+
+#### Acceptance Criteria
+
+1. THE Dashboard SHALL เปลี่ยนชื่อ "Cost Advisor" เป็น "CloudFinOps" ใน sidebar navigation, page header, และ README
+2. THE Dashboard SHALL คง functionality ทั้งหมดของ Cost Advisor เดิม (actual spend, RI/SP recommendations, optimization tips)
