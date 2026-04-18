@@ -206,19 +206,31 @@ const CompliancePage = (() => {
   function evaluateControl(control) {
     if (!control.check_ids || control.check_ids.length === 0) return { status: 'Not available', resources: [] };
 
-    const related = findings.filter(f => control.check_ids.includes(f.check_id));
-    if (related.length > 0) {
-      return { status: 'Need Attention', resources: related };
+    // Match by check_id (primary)
+    const byCheckId = findings.filter(f => f.check_id && control.check_ids.includes(f.check_id));
+    if (byCheckId.length > 0) {
+      return { status: 'Need Attention', resources: byCheckId };
     }
 
-    // Check if any related service was scanned at all
-    const scannedServices = new Set(findings.map(f => (f.service || '').toLowerCase()));
-    const anyScanned = control.check_ids.some(id => {
-      const prefix = id.split('-')[0];
-      return scannedServices.has(prefix) || findings.some(f => f.check_id === id);
-    });
+    // Fallback: match by service prefix from check_id
+    // e.g. check_id 'ec2-001' → service 'ec2', 's3-002' → service 's3'
+    const serviceMap = {
+      ec2: 'EC2', s3: 'S3', rds: 'RDS', iam: 'IAM', lambda: 'Lambda',
+      dynamodb: 'DynamoDB', elb: 'ELB', cloudfront: 'CloudFront',
+      ecs: 'ECS', eks: 'EKS', cloudtrail: 'CloudTrail', vpc: 'VPC',
+      kms: 'KMS', cloudwatch: 'CloudWatch', config: 'Config',
+    };
 
-    if (anyScanned) return { status: 'Compliant', resources: [] };
+    // Check if any related service was scanned
+    const scannedServices = new Set(findings.map(f => (f.service || '').toLowerCase()));
+    const controlServices = control.check_ids.map(id => id.split('-')[0]);
+    const anyScanned = controlServices.some(prefix => scannedServices.has(prefix));
+
+    if (anyScanned) {
+      // Service was scanned but no findings for these check_ids → Compliant
+      return { status: 'Compliant', resources: [] };
+    }
+
     return { status: 'Not available', resources: [] };
   }
 
