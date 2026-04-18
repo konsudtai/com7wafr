@@ -183,14 +183,122 @@ const FindingsPage = (() => {
     if (tbody) tbody.innerHTML = renderTableBody(filtered);
   }
 
+  function getRemediationSteps(f) {
+    const svc = (f.service || '').toLowerCase();
+    const checkId = f.check_id || '';
+    const steps = [];
+
+    // Service-specific remediation steps
+    if (svc === 'ec2' || checkId.startsWith('ec2')) {
+      if (checkId === 'ec2-001' || (f.title || '').includes('public IP')) {
+        steps.push('1. เปิด AWS Console → EC2 → Security Groups');
+        steps.push('2. เลือก Security Group ที่เกี่ยวข้อง');
+        steps.push('3. แก้ไข Inbound Rules — ลบ rule ที่อนุญาต 0.0.0.0/0 บน port 22');
+        steps.push('4. เพิ่ม rule ใหม่ที่จำกัด IP เฉพาะที่ต้องการ');
+        steps.push('5. พิจารณาใช้ AWS Systems Manager Session Manager แทน SSH');
+      } else if (checkId === 'ec2-002' || (f.title || '').includes('encrypt')) {
+        steps.push('1. เปิด AWS Console → EC2 → EBS → Volumes');
+        steps.push('2. สร้าง snapshot ของ volume ที่ไม่ได้เข้ารหัส');
+        steps.push('3. Copy snapshot โดยเลือก Encrypt this snapshot');
+        steps.push('4. สร้าง volume ใหม่จาก encrypted snapshot');
+        steps.push('5. เปิด EBS encryption by default สำหรับ region นี้');
+      }
+    } else if (svc === 's3' || checkId.startsWith('s3')) {
+      if ((f.title || '').includes('public access')) {
+        steps.push('1. เปิด AWS Console → S3 → เลือก bucket');
+        steps.push('2. ไปที่ Permissions → Block public access');
+        steps.push('3. เปิด Block all public access');
+        steps.push('4. ตรวจสอบ Bucket Policy ว่าไม่มี Principal: "*"');
+      } else if ((f.title || '').includes('encryption')) {
+        steps.push('1. เปิด AWS Console → S3 → เลือก bucket');
+        steps.push('2. ไปที่ Properties → Default encryption');
+        steps.push('3. เลือก SSE-S3 (AES-256) หรือ SSE-KMS');
+        steps.push('4. Save changes');
+      }
+    } else if (svc === 'rds' || checkId.startsWith('rds')) {
+      if ((f.title || '').includes('Multi-AZ')) {
+        steps.push('1. เปิด AWS Console → RDS → Databases');
+        steps.push('2. เลือก DB instance → Modify');
+        steps.push('3. เปิด Multi-AZ deployment');
+        steps.push('4. Apply immediately หรือ during maintenance window');
+      } else if ((f.title || '').includes('encrypt')) {
+        steps.push('1. สร้าง snapshot ของ DB instance');
+        steps.push('2. Copy snapshot โดยเลือก Enable encryption');
+        steps.push('3. Restore DB instance จาก encrypted snapshot');
+        steps.push('4. Update application connection string');
+      }
+    } else if (svc === 'iam' || checkId.startsWith('iam')) {
+      steps.push('1. เปิด AWS Console → IAM → Users');
+      steps.push('2. เลือก user ที่เกี่ยวข้อง');
+      if ((f.title || '').includes('MFA')) {
+        steps.push('3. ไปที่ Security credentials → Assign MFA device');
+        steps.push('4. เลือก Virtual MFA device และ scan QR code');
+      } else {
+        steps.push('3. ตรวจสอบ Permissions policies');
+        steps.push('4. ลบ inline policies ที่มี wildcard permissions');
+        steps.push('5. ใช้ AWS managed policies แทน');
+      }
+    } else if (svc === 'cloudtrail' || checkId.startsWith('cloudtrail')) {
+      steps.push('1. เปิด AWS Console → CloudTrail → Trails');
+      steps.push('2. เลือก trail ที่เกี่ยวข้อง');
+      if ((f.title || '').includes('multi-region')) {
+        steps.push('3. Edit → เปิด Apply trail to all regions');
+      } else if ((f.title || '').includes('KMS')) {
+        steps.push('3. Edit → Log file SSE-KMS encryption → เลือก KMS key');
+      } else if ((f.title || '').includes('validation')) {
+        steps.push('3. Edit → เปิด Log file validation');
+      }
+      steps.push('4. Save changes');
+    } else if (svc === 'vpc' || checkId.startsWith('vpc')) {
+      if ((f.title || '').includes('flow log')) {
+        steps.push('1. เปิด AWS Console → VPC → Your VPCs');
+        steps.push('2. เลือก VPC → Actions → Create flow log');
+        steps.push('3. เลือก Filter: All, Destination: CloudWatch Logs');
+        steps.push('4. สร้าง IAM role สำหรับ flow logs');
+      } else {
+        steps.push('1. เปิด AWS Console → VPC → Security Groups');
+        steps.push('2. เลือก default security group');
+        steps.push('3. ลบ inbound และ outbound rules ทั้งหมด');
+      }
+    }
+
+    if (steps.length === 0) {
+      steps.push('1. ตรวจสอบ resource ที่ระบุใน AWS Console');
+      steps.push('2. อ่านคำแนะนำด้านบนและดำเนินการแก้ไข');
+      steps.push('3. รัน scan อีกครั้งเพื่อยืนยันว่าแก้ไขสำเร็จ');
+    }
+
+    return steps;
+  }
+
   function showFindingDetail(f) {
+    const steps = getRemediationSteps(f);
     const body = `
       <div style="display:flex; flex-direction:column; gap:12px;">
         <div><span class="badge ${severityBadgeClass(f.severity)}">${f.severity}</span> <span class="text-secondary" style="margin-left:8px; font-size:0.82rem;">${f.pillar}</span></div>
         <div><strong style="font-size:0.82rem; color:var(--text-secondary);">Resource</strong><p style="font-family:var(--font-mono); font-size:0.88rem; word-break:break-all;">${f.resource_id || f.resourceId || ''}</p></div>
         <div><strong style="font-size:0.82rem; color:var(--text-secondary);">Service / Region / Account</strong><p>${f.service} · ${f.region} · ${f.account_id || f.account || ''}</p></div>
         <div><strong style="font-size:0.82rem; color:var(--text-secondary);">Description</strong><p style="font-size:0.94rem;">${f.description || ''}</p></div>
-        <div><strong style="font-size:0.82rem; color:var(--text-secondary);">Recommendation</strong><p style="font-size:0.94rem;">${f.recommendation || ''}</p></div>
+        <div style="background:var(--bg-page); border:1px solid var(--border-default); border-radius:var(--radius-md); padding:16px;">
+          <strong style="font-size:0.82rem; color:var(--color-terracotta);">💡 Recommendation</strong>
+          <p style="font-size:0.94rem; margin-top:4px;">${f.recommendation || ''}</p>
+        </div>
+        <div style="background:var(--bg-page); border:1px solid var(--border-default); border-radius:var(--radius-md); padding:16px;">
+          <strong style="font-size:0.82rem; color:var(--color-success);">🔧 ขั้นตอนการแก้ไข (Remediation Steps)</strong>
+          <ol style="margin:8px 0 0 0; padding-left:20px; font-size:0.88rem; line-height:1.8;">
+            ${steps.map(s => `<li>${s.replace(/^\d+\.\s*/, '')}</li>`).join('')}
+          </ol>
+        </div>
+        <div style="background:rgba(201,100,66,0.06); border:1px solid rgba(201,100,66,0.15); border-radius:var(--radius-md); padding:16px;">
+          <strong style="font-size:0.82rem; color:var(--color-terracotta);">📋 สิ่งที่ควรทำต่อ (Next Steps)</strong>
+          <ol style="margin:8px 0 0 0; padding-left:20px; font-size:0.88rem; line-height:1.8;">
+            <li>ดำเนินการแก้ไขตามขั้นตอนด้านบน</li>
+            <li>รัน Scan อีกครั้งเพื่อยืนยันว่า finding นี้ถูกแก้ไขแล้ว</li>
+            <li>ตรวจสอบหน้า Compliance ว่า control ที่เกี่ยวข้องเปลี่ยนเป็น PASS</li>
+            <li>บันทึกการแก้ไขใน Change Management system ขององค์กร</li>
+          </ol>
+        </div>
+        ${f.documentation_url ? `<div><a href="${f.documentation_url}" target="_blank" rel="noopener noreferrer" style="font-size:0.88rem;">📖 AWS Documentation →</a></div>` : ''}
       </div>
     `;
     App.showModal(f.title || 'Finding Detail', body);

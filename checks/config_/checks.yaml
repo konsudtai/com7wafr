@@ -1,0 +1,9 @@
+checks:
+  - check_id: config-001
+    service: config
+    description: AWS Config should be enabled in the region
+    pillar: security
+    severity: HIGH
+    evaluation_logic_ref: "checks.config_:check_config_enabled"
+    remediation_guidance: Enable AWS Config to record resource configurations and changes
+    documentation_url: https://docs.aws.amazon.com/config/latest/developerguide/gs-console.html

@@ -1,0 +1,18 @@
+checks:
+  - check_id: kms-001
+    service: kms
+    description: KMS customer-managed key should have automatic rotation enabled
+    pillar: security
+    severity: MEDIUM
+    evaluation_logic_ref: "checks.kms:check_key_rotation"
+    remediation_guidance: Enable automatic key rotation for customer-managed KMS keys
+    documentation_url: https://docs.aws.amazon.com/kms/latest/developerguide/rotate-keys.html
+
+  - check_id: kms-002
+    service: kms
+    description: KMS key policy should not have wildcard principal
+    pillar: security
+    severity: HIGH
+    evaluation_logic_ref: "checks.kms:check_key_policy_no_wildcard"
+    remediation_guidance: Restrict KMS key policy to specific principals instead of using wildcard
+    documentation_url: https://docs.aws.amazon.com/kms/latest/developerguide/key-policies.html

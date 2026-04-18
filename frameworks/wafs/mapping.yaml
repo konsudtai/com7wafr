@@ -1,0 +1,81 @@
+metadata:
+  id: wafs
+  name: AWS Well-Architected Framework
+  version: "2024"
+  description: AWS Well-Architected Framework best practices across 5 pillars
+
+controls:
+  - control_id: "SEC-01"
+    title: "Implement strong identity foundation"
+    section: "Security"
+    check_ids: [iam-001, iam-002, iam-003]
+
+  - control_id: "SEC-02"
+    title: "Enable traceability"
+    section: "Security"
+    check_ids: [cloudtrail-001, cloudtrail-002, cloudtrail-003, vpc-001]
+
+  - control_id: "SEC-03"
+    title: "Apply security at all layers"
+    section: "Security"
+    check_ids: [ec2-001, vpc-002, vpc-003, cloudfront-001, cloudfront-002]
+
+  - control_id: "SEC-04"
+    title: "Protect data in transit and at rest"
+    section: "Security"
+    check_ids: [s3-002, rds-002, ec2-002, cloudtrail-002, kms-001]
+
+  - control_id: "SEC-05"
+    title: "Keep people away from data"
+    section: "Security"
+    check_ids: [s3-001, cloudtrail-004, kms-002]
+
+  - control_id: "REL-01"
+    title: "Automatically recover from failure"
+    section: "Reliability"
+    check_ids: [rds-001, ecs-001, lambda-002]
+
+  - control_id: "REL-02"
+    title: "Test recovery procedures"
+    section: "Reliability"
+    check_ids: [rds-003]
+
+  - control_id: "REL-03"
+    title: "Scale horizontally"
+    section: "Reliability"
+    check_ids: [ecs-002]
+
+  - control_id: "OPS-01"
+    title: "Perform operations as code"
+    section: "Operational Excellence"
+    check_ids: [config-001]
+
+  - control_id: "OPS-02"
+    title: "Make frequent, small, reversible changes"
+    section: "Operational Excellence"
+    check_ids: [ecs-001]
+
+  - control_id: "OPS-03"
+    title: "Anticipate failure"
+    section: "Operational Excellence"
+    check_ids: [ec2-003, cloudwatch-001, cloudwatch-002, eks-001]
+
+  - control_id: "PERF-01"
+    title: "Use serverless architectures"
+    section: "Performance Efficiency"
+    check_ids: [lambda-001]
+
+  - control_id: "PERF-02"
+    title: "Go global in minutes"
+    section: "Performance Efficiency"
+    check_ids: [cloudfront-001]
+
+  - control_id: "COST-01"
+    title: "Implement cloud financial management"
+    section: "Cost Optimization"
+    check_ids: [dynamodb-001, s3-003]
+
+  - control_id: "COST-02"
+    title: "Adopt a consumption model"
+    section: "Cost Optimization"
+    check_ids: [lambda-001, dynamodb-001]

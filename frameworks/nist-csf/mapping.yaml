@@ -1,0 +1,76 @@
+metadata:
+  id: nist-csf
+  name: NIST Cybersecurity Framework
+  version: "1.1"
+  description: Framework for improving critical infrastructure cybersecurity
+
+controls:
+  - control_id: "ID.AM-2"
+    title: "Software platforms and applications are inventoried"
+    section: "Identify - Asset Management"
+    check_ids: [config-001]
+
+  - control_id: "PR.AC-1"
+    title: "Identities and credentials are managed"
+    section: "Protect - Access Control"
+    check_ids: [iam-001, iam-002, iam-003]
+
+  - control_id: "PR.AC-3"
+    title: "Remote access is managed"
+    section: "Protect - Access Control"
+    check_ids: [ec2-001, vpc-003]
+
+  - control_id: "PR.AC-4"
+    title: "Access permissions are managed with least privilege"
+    section: "Protect - Access Control"
+    check_ids: [iam-002, kms-002]
+
+  - control_id: "PR.DS-1"
+    title: "Data-at-rest is protected"
+    section: "Protect - Data Security"
+    check_ids: [s3-002, rds-002, ec2-002]
+
+  - control_id: "PR.DS-2"
+    title: "Data-in-transit is protected"
+    section: "Protect - Data Security"
+    check_ids: [cloudfront-001, elb-002]
+
+  - control_id: "PR.DS-5"
+    title: "Protections against data leaks are implemented"
+    section: "Protect - Data Security"
+    check_ids: [s3-001, cloudtrail-004]
+
+  - control_id: "PR.IP-1"
+    title: "Baseline configuration of IT systems is maintained"
+    section: "Protect - Information Protection"
+    check_ids: [config-001]
+
+  - control_id: "PR.PT-1"
+    title: "Audit/log records are maintained"
+    section: "Protect - Protective Technology"
+    check_ids: [cloudtrail-001, cloudtrail-003, vpc-001, cloudwatch-001]
+
+  - control_id: "DE.AE-3"
+    title: "Event data are aggregated and correlated"
+    section: "Detect - Anomalies and Events"
+    check_ids: [cloudwatch-002]
+
+  - control_id: "DE.CM-1"
+    title: "The network is monitored"
+    section: "Detect - Continuous Monitoring"
+    check_ids: [vpc-001, elb-001]
+
+  - control_id: "DE.CM-7"
+    title: "Monitoring for unauthorized activity is performed"
+    section: "Detect - Continuous Monitoring"
+    check_ids: [cloudtrail-001, cloudwatch-002]
+
+  - control_id: "RS.RP-1"
+    title: "Response plan is executed during or after an event"
+    section: "Respond - Response Planning"
+    check_ids: [lambda-002]
+
+  - control_id: "RC.RP-1"
+    title: "Recovery plan is executed during or after an event"
+    section: "Recover - Recovery Planning"
+    check_ids: [rds-001, rds-003]

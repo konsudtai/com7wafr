@@ -1,0 +1,81 @@
+metadata:
+  id: ftr
+  name: AWS Foundational Technical Review (FTR)
+  version: "2024"
+  description: AWS Partner technical baseline requirements for SaaS and managed services
+
+controls:
+  - control_id: "FTR-SEC-01"
+    title: "Use IAM roles instead of long-term credentials"
+    section: "Security"
+    check_ids: [iam-001, iam-002]
+
+  - control_id: "FTR-SEC-02"
+    title: "Enable MFA for privileged users"
+    section: "Security"
+    check_ids: [iam-003]
+
+  - control_id: "FTR-SEC-03"
+    title: "Encrypt data at rest"
+    section: "Security"
+    check_ids: [s3-002, rds-002, ec2-002, kms-001]
+
+  - control_id: "FTR-SEC-04"
+    title: "Encrypt data in transit"
+    section: "Security"
+    check_ids: [cloudfront-001, elb-002]
+
+  - control_id: "FTR-SEC-05"
+    title: "Restrict network access"
+    section: "Security"
+    check_ids: [ec2-001, vpc-002, vpc-003]
+
+  - control_id: "FTR-SEC-06"
+    title: "Enable logging and monitoring"
+    section: "Security"
+    check_ids: [cloudtrail-001, cloudtrail-003, vpc-001, cloudwatch-001]
+
+  - control_id: "FTR-SEC-07"
+    title: "Protect S3 buckets from public access"
+    section: "Security"
+    check_ids: [s3-001, cloudtrail-004]
+
+  - control_id: "FTR-SEC-08"
+    title: "Enable AWS Config"
+    section: "Security"
+    check_ids: [config-001]
+
+  - control_id: "FTR-REL-01"
+    title: "Deploy across multiple Availability Zones"
+    section: "Reliability"
+    check_ids: [rds-001]
+
+  - control_id: "FTR-REL-02"
+    title: "Implement backup and recovery"
+    section: "Reliability"
+    check_ids: [rds-003, dynamodb-002]
+
+  - control_id: "FTR-REL-03"
+    title: "Implement health checks and auto-recovery"
+    section: "Reliability"
+    check_ids: [ecs-001, lambda-002]
+
+  - control_id: "FTR-OPS-01"
+    title: "Use infrastructure as code"
+    section: "Operational Excellence"
+    check_ids: [config-001]
+
+  - control_id: "FTR-OPS-02"
+    title: "Enable detailed monitoring"
+    section: "Operational Excellence"
+    check_ids: [ec2-003, cloudwatch-001, cloudwatch-002, eks-001]
+
+  - control_id: "FTR-OPS-03"
+    title: "Use current generation resources"
+    section: "Operational Excellence"
+    check_ids: [lambda-003]
+
+  - control_id: "FTR-COST-01"
+    title: "Right-size resources"
+    section: "Cost Optimization"
+    check_ids: [lambda-001]

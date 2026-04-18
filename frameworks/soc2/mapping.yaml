@@ -1,0 +1,56 @@
+metadata:
+  id: soc2
+  name: SOC 2 Trust Services Criteria
+  version: "2017"
+  description: Trust Services Criteria for Security, Availability, and Confidentiality
+
+controls:
+  - control_id: "CC6.1"
+    title: "Logical and physical access controls"
+    section: "Common Criteria - Logical and Physical Access"
+    check_ids: [iam-001, iam-002, iam-003, vpc-002, vpc-003]
+
+  - control_id: "CC6.3"
+    title: "Role-based access and least privilege"
+    section: "Common Criteria - Logical and Physical Access"
+    check_ids: [iam-002, kms-002]
+
+  - control_id: "CC6.6"
+    title: "System boundaries are protected"
+    section: "Common Criteria - Logical and Physical Access"
+    check_ids: [ec2-001, vpc-001, vpc-003, cloudfront-002]
+
+  - control_id: "CC6.7"
+    title: "Data transmission is protected"
+    section: "Common Criteria - Logical and Physical Access"
+    check_ids: [cloudfront-001, elb-002]
+
+  - control_id: "CC6.8"
+    title: "Unauthorized software is prevented"
+    section: "Common Criteria - Logical and Physical Access"
+    check_ids: [lambda-003]
+
+  - control_id: "CC7.1"
+    title: "Detection and monitoring of security events"
+    section: "Common Criteria - System Operations"
+    check_ids: [cloudtrail-001, cloudwatch-001, cloudwatch-002, vpc-001]
+
+  - control_id: "CC7.2"
+    title: "Anomalies are monitored and evaluated"
+    section: "Common Criteria - System Operations"
+    check_ids: [cloudtrail-001, cloudtrail-003, cloudwatch-002]
+
+  - control_id: "CC8.1"
+    title: "Changes are authorized and tested"
+    section: "Common Criteria - Change Management"
+    check_ids: [config-001]
+
+  - control_id: "A1.2"
+    title: "Environmental protections and redundancy"
+    section: "Availability"
+    check_ids: [rds-001, ecs-001]
+
+  - control_id: "C1.1"
+    title: "Confidential information is protected"
+    section: "Confidentiality"
+    check_ids: [s3-001, s3-002, rds-002, cloudtrail-002, kms-001]

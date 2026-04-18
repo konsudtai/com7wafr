@@ -1,0 +1,161 @@
+metadata:
+  id: spip
+  name: AWS Security Posture Improvement Program (SPIP)
+  version: "1.0"
+  description: "Thorough review across six critical phases: Identity Protection, Data Protection, Infrastructure Protection, Detection & Mitigation, AppSec & DevSecOps, and Centralization"
+
+controls:
+  # Phase 1: Identity Protection
+  - control_id: "P1.1"
+    title: "Enable MFA for root and IAM users"
+    section: "Identity Protection"
+    check_ids: [iam-003]
+
+  - control_id: "P1.2"
+    title: "Rotate access keys regularly (90 days)"
+    section: "Identity Protection"
+    check_ids: []
+
+  - control_id: "P1.3"
+    title: "Enforce strong password policy"
+    section: "Identity Protection"
+    check_ids: []
+
+  - control_id: "P1.4"
+    title: "Use SSO or external identity provider"
+    section: "Identity Protection"
+    check_ids: []
+
+  - control_id: "P1.5"
+    title: "Enable Service Control Policies (SCP)"
+    section: "Identity Protection"
+    check_ids: []
+
+  - control_id: "P1.6"
+    title: "Implement least privilege access"
+    section: "Identity Protection"
+    check_ids: [iam-002]
+
+  - control_id: "P1.7"
+    title: "Review and remove unused credentials"
+    section: "Identity Protection"
+    check_ids: [iam-001]
+
+  # Phase 2: Data Protection
+  - control_id: "P2.1"
+    title: "Block public access to S3 buckets"
+    section: "Data Protection"
+    check_ids: [s3-001]
+
+  - control_id: "P2.2"
+    title: "Enable automated backups (EBS, RDS, DynamoDB)"
+    section: "Data Protection"
+    check_ids: [rds-003]
+
+  - control_id: "P2.3"
+    title: "Encrypt data at rest (S3, EBS, RDS)"
+    section: "Data Protection"
+    check_ids: [s3-002, ec2-002, rds-002]
+
+  - control_id: "P2.4"
+    title: "Enable data classification (Macie)"
+    section: "Data Protection"
+    check_ids: []
+
+  - control_id: "P2.5"
+    title: "Enforce encryption in transit (TLS)"
+    section: "Data Protection"
+    check_ids: [cloudfront-001, elb-002]
+
+  # Phase 3: Infrastructure Protection and Visibility
+  - control_id: "P3.1"
+    title: "Restrict security group rules (no open ports)"
+    section: "Infrastructure Protection"
+    check_ids: [ec2-001, vpc-002, vpc-003]
+
+  - control_id: "P3.2"
+    title: "Associate WAF with CloudFront distributions"
+    section: "Infrastructure Protection"
+    check_ids: [cloudfront-002]
+
+  - control_id: "P3.3"
+    title: "Configure CloudFront default root object"
+    section: "Infrastructure Protection"
+    check_ids: []
+
+  - control_id: "P3.4"
+    title: "Enable VPC flow logs"
+    section: "Infrastructure Protection"
+    check_ids: [vpc-001]
+
+  - control_id: "P3.5"
+    title: "Restrict sensitive ports from public access"
+    section: "Infrastructure Protection"
+    check_ids: [ec2-001, vpc-003]
+
+  - control_id: "P3.6"
+    title: "Associate WAF with API Gateway"
+    section: "Infrastructure Protection"
+    check_ids: []
+
+  # Phase 4: Detection & Mitigation
+  - control_id: "P4.1"
+    title: "Enable CloudTrail with log validation"
+    section: "Detection & Mitigation"
+    check_ids: [cloudtrail-001, cloudtrail-003]
+
+  - control_id: "P4.2"
+    title: "Enable GuardDuty"
+    section: "Detection & Mitigation"
+    check_ids: []
+
+  - control_id: "P4.3"
+    title: "Enable S3 access logging for CloudTrail bucket"
+    section: "Detection & Mitigation"
+    check_ids: [cloudtrail-004]
+
+  - control_id: "P4.4"
+    title: "Enable versioning and MFA delete on log buckets"
+    section: "Detection & Mitigation"
+    check_ids: []
+
+  - control_id: "P4.5"
+    title: "Configure CloudWatch alarms for critical events"
+    section: "Detection & Mitigation"
+    check_ids: [cloudwatch-001, cloudwatch-002]
+
+  - control_id: "P4.6"
+    title: "Enable AWS Config for change tracking"
+    section: "Detection & Mitigation"
+    check_ids: [config-001]
+
+  - control_id: "P4.7"
+    title: "Implement incident response plan"
+    section: "Detection & Mitigation"
+    check_ids: [lambda-002]
+
+  # Phase 5: AppSec & DevSecOps
+  - control_id: "P5.1"
+    title: "Use Secrets Manager for database credentials"
+    section: "AppSec & DevSecOps"
+    check_ids: []
+
+  - control_id: "P5.2"
+    title: "Use latest runtime versions"
+    section: "AppSec & DevSecOps"
+    check_ids: [lambda-003]
+
+  - control_id: "P5.3"
+    title: "Enable KMS key rotation"
+    section: "AppSec & DevSecOps"
+    check_ids: [kms-001]
+
+  - control_id: "P5.4"
+    title: "Restrict KMS key policies"
+    section: "AppSec & DevSecOps"
+    check_ids: [kms-002]
+
+  - control_id: "P5.5"
+    title: "Implement container security (ECS/EKS)"
+    section: "AppSec & DevSecOps"
+    check_ids: [ecs-001, ecs-002, eks-001, eks-002]

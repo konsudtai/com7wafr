@@ -1,0 +1,96 @@
+metadata:
+  id: ssb
+  name: AWS Startup Security Baseline (SSB)
+  version: "2024"
+  description: Minimum security controls recommended for AWS startups and small teams
+
+controls:
+  - control_id: "SSB-ACCT-01"
+    title: "Secure root account with MFA"
+    section: "Account Security"
+    check_ids: [iam-001]
+
+  - control_id: "SSB-ACCT-02"
+    title: "Use IAM roles instead of access keys"
+    section: "Account Security"
+    check_ids: [iam-002]
+
+  - control_id: "SSB-ACCT-03"
+    title: "Enable MFA for all IAM users"
+    section: "Account Security"
+    check_ids: [iam-003]
+
+  - control_id: "SSB-LOG-01"
+    title: "Enable CloudTrail in all regions"
+    section: "Logging & Monitoring"
+    check_ids: [cloudtrail-001]
+
+  - control_id: "SSB-LOG-02"
+    title: "Enable CloudTrail log file validation"
+    section: "Logging & Monitoring"
+    check_ids: [cloudtrail-003]
+
+  - control_id: "SSB-LOG-03"
+    title: "Encrypt CloudTrail logs with KMS"
+    section: "Logging & Monitoring"
+    check_ids: [cloudtrail-002]
+
+  - control_id: "SSB-LOG-04"
+    title: "Enable VPC flow logs"
+    section: "Logging & Monitoring"
+    check_ids: [vpc-001]
+
+  - control_id: "SSB-LOG-05"
+    title: "Set log retention policies"
+    section: "Logging & Monitoring"
+    check_ids: [cloudwatch-001]
+
+  - control_id: "SSB-LOG-06"
+    title: "Enable AWS Config"
+    section: "Logging & Monitoring"
+    check_ids: [config-001]
+
+  - control_id: "SSB-NET-01"
+    title: "Restrict SSH access"
+    section: "Network Security"
+    check_ids: [ec2-001, vpc-003]
+
+  - control_id: "SSB-NET-02"
+    title: "Lock down default security groups"
+    section: "Network Security"
+    check_ids: [vpc-002]
+
+  - control_id: "SSB-NET-03"
+    title: "Enforce HTTPS"
+    section: "Network Security"
+    check_ids: [cloudfront-001, elb-002]
+
+  - control_id: "SSB-DATA-01"
+    title: "Encrypt data at rest"
+    section: "Data Protection"
+    check_ids: [s3-002, rds-002, ec2-002]
+
+  - control_id: "SSB-DATA-02"
+    title: "Block public S3 access"
+    section: "Data Protection"
+    check_ids: [s3-001, cloudtrail-004]
+
+  - control_id: "SSB-DATA-03"
+    title: "Enable KMS key rotation"
+    section: "Data Protection"
+    check_ids: [kms-001]
+
+  - control_id: "SSB-RESIL-01"
+    title: "Enable Multi-AZ for databases"
+    section: "Resilience"
+    check_ids: [rds-001]
+
+  - control_id: "SSB-RESIL-02"
+    title: "Enable automated backups"
+    section: "Resilience"
+    check_ids: [rds-003, dynamodb-002]
+
+  - control_id: "SSB-RESIL-03"
+    title: "Configure dead letter queues"
+    section: "Resilience"
+    check_ids: [lambda-002]

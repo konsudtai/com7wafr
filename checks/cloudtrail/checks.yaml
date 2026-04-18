@@ -1,0 +1,36 @@
+checks:
+  - check_id: cloudtrail-001
+    service: cloudtrail
+    description: CloudTrail should have a multi-region trail enabled
+    pillar: security
+    severity: HIGH
+    evaluation_logic_ref: "checks.cloudtrail:check_multi_region_trail"
+    remediation_guidance: Enable a multi-region trail to capture API activity across all AWS regions
+    documentation_url: https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-create-and-update-a-trail.html
+
+  - check_id: cloudtrail-002
+    service: cloudtrail
+    description: CloudTrail trail should use KMS encryption
+    pillar: security
+    severity: MEDIUM
+    evaluation_logic_ref: "checks.cloudtrail:check_kms_encryption"
+    remediation_guidance: Configure KMS encryption for CloudTrail logs to protect sensitive API activity data
+    documentation_url: https://docs.aws.amazon.com/awscloudtrail/latest/userguide/encrypting-cloudtrail-log-files-with-aws-kms.html
+
+  - check_id: cloudtrail-003
+    service: cloudtrail
+    description: CloudTrail log file validation should be enabled
+    pillar: security
+    severity: MEDIUM
+    evaluation_logic_ref: "checks.cloudtrail:check_log_file_validation"
+    remediation_guidance: Enable log file validation to detect unauthorized modifications to CloudTrail logs
+    documentation_url: https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-log-file-validation-intro.html
+
+  - check_id: cloudtrail-004
+    service: cloudtrail
+    description: CloudTrail S3 bucket should block public access
+    pillar: security
+    severity: CRITICAL
+    evaluation_logic_ref: "checks.cloudtrail:check_s3_public_access"
+    remediation_guidance: Enable S3 Block Public Access on the CloudTrail log bucket
+    documentation_url: https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html

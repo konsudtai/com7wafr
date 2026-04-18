@@ -8,7 +8,7 @@ const ScanPage = (() => {
   let pollInterval = null;
   let accounts = [];
 
-  const ALL_SERVICES = ['EC2', 'S3', 'RDS', 'IAM', 'Lambda', 'DynamoDB', 'ELB', 'CloudFront', 'ECS', 'EKS'];
+  const ALL_SERVICES = ['EC2', 'S3', 'RDS', 'IAM', 'Lambda', 'DynamoDB', 'ELB', 'CloudFront', 'ECS', 'EKS', 'CloudTrail', 'VPC', 'KMS', 'CloudWatch', 'Config'];
   const ALL_REGIONS = [
     'us-east-1', 'us-east-2', 'us-west-1', 'us-west-2',
     'ap-southeast-1', 'ap-southeast-2', 'ap-northeast-1', 'ap-northeast-2', 'ap-south-1',

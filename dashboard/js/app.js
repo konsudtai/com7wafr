@@ -21,7 +21,8 @@ const App = (() => {
     scan:     { title: 'Scan',     render: () => typeof ScanPage     !== 'undefined' ? ScanPage.render()     : placeholder('Scan') },
     history:  { title: 'History',  render: () => typeof HistoryPage  !== 'undefined' ? HistoryPage.render()  : placeholder('History') },
     report:   { title: 'Report',   render: () => typeof ReportPage   !== 'undefined' ? ReportPage.render()   : placeholder('Report') },
-    cost:     { title: 'Cost Advisor', render: () => typeof CostPage !== 'undefined' ? CostPage.render() : placeholder('Cost Advisor') },
+    compliance: { title: 'Compliance', render: () => typeof CompliancePage !== 'undefined' ? CompliancePage.render() : placeholder('Compliance') },
+    cost:     { title: 'CloudFinOps', render: () => typeof CostPage !== 'undefined' ? CostPage.render() : placeholder('CloudFinOps') },
     team:     { title: 'Team',     render: () => typeof TeamPage     !== 'undefined' ? TeamPage.render()     : placeholder('Team Management') },
   };
 
@@ -81,6 +82,7 @@ const App = (() => {
         scan:     typeof ScanPage     !== 'undefined' ? ScanPage     : null,
         history:  typeof HistoryPage  !== 'undefined' ? HistoryPage  : null,
         report:   typeof ReportPage   !== 'undefined' ? ReportPage   : null,
+        compliance: typeof CompliancePage !== 'undefined' ? CompliancePage : null,
         cost:     typeof CostPage     !== 'undefined' ? CostPage     : null,
         team:     typeof TeamPage     !== 'undefined' ? TeamPage     : null,
       };

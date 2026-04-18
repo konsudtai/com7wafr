@@ -683,6 +683,85 @@ async function scanService(
         }
         break;
       }
+      case 'cloudtrail': {
+        const { CloudTrailClient, DescribeTrailsCommand, GetTrailStatusCommand } = await import('@aws-sdk/client-cloudtrail');
+        const ct = new CloudTrailClient(clientConfig);
+        const resp = await ct.send(new DescribeTrailsCommand({}));
+        for (const trail of resp.trailList ?? []) {
+          if (!trail.IsMultiRegionTrail) {
+            findings.push({ finding_id: randomUUID(), account_id: accountId, region, service: 'CloudTrail', resource_id: trail.Name, resource_arn: trail.TrailARN, pillar: 'Security', severity: 'HIGH', check_id: 'cloudtrail-001', title: `CloudTrail ${trail.Name} is not multi-region`, description: 'Trail does not capture API activity across all regions.', recommendation: 'Enable multi-region trail.' });
+          }
+          if (!trail.KmsKeyId) {
+            findings.push({ finding_id: randomUUID(), account_id: accountId, region, service: 'CloudTrail', resource_id: trail.Name, resource_arn: trail.TrailARN, pillar: 'Security', severity: 'MEDIUM', check_id: 'cloudtrail-002', title: `CloudTrail ${trail.Name} not encrypted with KMS`, description: 'Trail logs are not encrypted with a KMS key.', recommendation: 'Configure KMS encryption for CloudTrail.' });
+          }
+          if (!trail.LogFileValidationEnabled) {
+            findings.push({ finding_id: randomUUID(), account_id: accountId, region, service: 'CloudTrail', resource_id: trail.Name, resource_arn: trail.TrailARN, pillar: 'Security', severity: 'MEDIUM', check_id: 'cloudtrail-003', title: `CloudTrail ${trail.Name} log file validation disabled`, description: 'Log file validation is not enabled.', recommendation: 'Enable log file validation.' });
+          }
+        }
+        break;
+      }
+      case 'cloudwatch': {
+        const { CloudWatchLogsClient, DescribeLogGroupsCommand } = await import('@aws-sdk/client-cloudwatch-logs');
+        const cw = new CloudWatchLogsClient(clientConfig);
+        const resp = await cw.send(new DescribeLogGroupsCommand({ limit: 50 }));
+        for (const lg of resp.logGroups ?? []) {
+          if (!lg.retentionInDays) {
+            findings.push({ finding_id: randomUUID(), account_id: accountId, region, service: 'CloudWatch', resource_id: lg.logGroupName, resource_arn: lg.arn, pillar: 'Operational Excellence', severity: 'MEDIUM', check_id: 'cloudwatch-001', title: `Log group ${lg.logGroupName} has no retention policy`, description: 'Log group will retain logs indefinitely, increasing costs.', recommendation: 'Set a retention policy.' });
+          }
+        }
+        break;
+      }
+      case 'config': {
+        const { ConfigServiceClient, DescribeConfigurationRecordersCommand, DescribeConfigurationRecorderStatusCommand } = await import('@aws-sdk/client-config-service');
+        const cfg = new ConfigServiceClient(clientConfig);
+        try {
+          const recorders = await cfg.send(new DescribeConfigurationRecordersCommand({}));
+          const statuses = await cfg.send(new DescribeConfigurationRecorderStatusCommand({}));
+          const isRecording = statuses.ConfigurationRecordersStatus?.some(s => s.recording) ?? false;
+          if (!isRecording || (recorders.ConfigurationRecorders?.length ?? 0) === 0) {
+            findings.push({ finding_id: randomUUID(), account_id: accountId, region, service: 'Config', resource_id: 'AWS Config', pillar: 'Security', severity: 'HIGH', check_id: 'config-001', title: `AWS Config is not enabled in ${region}`, description: 'AWS Config is not recording resource configurations.', recommendation: 'Enable AWS Config in this region.' });
+          }
+        } catch { /* Config not available */ }
+        break;
+      }
+      case 'kms': {
+        const { KMSClient, ListKeysCommand, DescribeKeyCommand, GetKeyRotationStatusCommand } = await import('@aws-sdk/client-kms');
+        const kms = new KMSClient(clientConfig);
+        const keys = await kms.send(new ListKeysCommand({ Limit: 100 }));
+        for (const key of keys.Keys ?? []) {
+          try {
+            const desc = await kms.send(new DescribeKeyCommand({ KeyId: key.KeyId }));
+            if (desc.KeyMetadata?.KeyManager !== 'CUSTOMER') continue;
+            if (desc.KeyMetadata?.KeyState !== 'Enabled') continue;
+            try {
+              const rotation = await kms.send(new GetKeyRotationStatusCommand({ KeyId: key.KeyId }));
+              if (!rotation.KeyRotationEnabled) {
+                findings.push({ finding_id: randomUUID(), account_id: accountId, region, service: 'KMS', resource_id: key.KeyId, resource_arn: desc.KeyMetadata?.Arn, pillar: 'Security', severity: 'MEDIUM', check_id: 'kms-001', title: `KMS key ${key.KeyId} rotation not enabled`, description: 'Automatic key rotation is not enabled.', recommendation: 'Enable automatic key rotation.' });
+              }
+            } catch { /* rotation check failed */ }
+          } catch { /* describe failed */ }
+        }
+        break;
+      }
+      case 'vpc': {
+        const { EC2Client: VPCClient, DescribeVpcsCommand, DescribeFlowLogsCommand, DescribeSecurityGroupsCommand } = await import('@aws-sdk/client-ec2');
+        const vpc = new VPCClient(clientConfig);
+        const vpcs = await vpc.send(new DescribeVpcsCommand({}));
+        for (const v of vpcs.Vpcs ?? []) {
+          const flowLogs = await vpc.send(new DescribeFlowLogsCommand({ Filter: [{ Name: 'resource-id', Values: [v.VpcId!] }] }));
+          if (!flowLogs.FlowLogs?.length) {
+            findings.push({ finding_id: randomUUID(), account_id: accountId, region, service: 'VPC', resource_id: v.VpcId, pillar: 'Security', severity: 'MEDIUM', check_id: 'vpc-001', title: `VPC ${v.VpcId} has no flow logs`, description: 'VPC flow logs are not enabled.', recommendation: 'Enable VPC flow logs.' });
+          }
+        }
+        // Check default security groups
+        const sgs = await vpc.send(new DescribeSecurityGroupsCommand({ Filters: [{ Name: 'group-name', Values: ['default'] }] }));
+        for (const sg of sgs.SecurityGroups ?? []) {
+          if ((sg.IpPermissions?.length ?? 0) > 0 || (sg.IpPermissionsEgress?.length ?? 0) > 0) {
+            findings.push({ finding_id: randomUUID(), account_id: accountId, region, service: 'VPC', resource_id: sg.GroupId, pillar: 'Security', severity: 'HIGH', check_id: 'vpc-002', title: `Default SG ${sg.GroupId} has rules`, description: 'Default security group should have no rules.', recommendation: 'Remove all rules from default security group.' });
+          }
+        }
+        break;
+      }
       default:
         // Other services: no-op for now, can be extended
         break;

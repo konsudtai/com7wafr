@@ -1,0 +1,91 @@
+metadata:
+  id: cis-aws
+  name: CIS AWS Foundations Benchmark
+  version: "1.4"
+  description: Security configuration best practices for AWS accounts and resources
+
+controls:
+  - control_id: "IAM.1"
+    title: "Avoid use of root account"
+    section: "Identity and Access Management"
+    check_ids: [iam-001]
+
+  - control_id: "IAM.3"
+    title: "Ensure access keys are rotated every 90 days"
+    section: "Identity and Access Management"
+    check_ids: []
+
+  - control_id: "IAM.5"
+    title: "Ensure MFA is enabled for all IAM users"
+    section: "Identity and Access Management"
+    check_ids: [iam-003]
+
+  - control_id: "IAM.15"
+    title: "Ensure IAM password policy requires minimum length"
+    section: "Identity and Access Management"
+    check_ids: []
+
+  - control_id: "CloudTrail.1"
+    title: "Ensure CloudTrail is enabled in all regions"
+    section: "Logging"
+    check_ids: [cloudtrail-001]
+
+  - control_id: "CloudTrail.2"
+    title: "Ensure CloudTrail log file validation is enabled"
+    section: "Logging"
+    check_ids: [cloudtrail-003]
+
+  - control_id: "CloudTrail.4"
+    title: "Ensure CloudTrail trails are encrypted with KMS"
+    section: "Logging"
+    check_ids: [cloudtrail-002]
+
+  - control_id: "CloudTrail.6"
+    title: "Ensure S3 bucket for CloudTrail blocks public access"
+    section: "Logging"
+    check_ids: [cloudtrail-004]
+
+  - control_id: "Config.1"
+    title: "Ensure AWS Config is enabled in all regions"
+    section: "Monitoring"
+    check_ids: [config-001]
+
+  - control_id: "EC2.2"
+    title: "Ensure default security group restricts all traffic"
+    section: "Networking"
+    check_ids: [vpc-002]
+
+  - control_id: "EC2.6"
+    title: "Ensure VPC flow logging is enabled"
+    section: "Networking"
+    check_ids: [vpc-001]
+
+  - control_id: "EC2.7"
+    title: "Ensure EBS volumes are encrypted"
+    section: "Networking"
+    check_ids: [ec2-002]
+
+  - control_id: "EC2.21"
+    title: "Ensure NACL does not allow unrestricted SSH"
+    section: "Networking"
+    check_ids: [vpc-003]
+
+  - control_id: "KMS.4"
+    title: "Ensure KMS key rotation is enabled"
+    section: "Encryption"
+    check_ids: [kms-001]
+
+  - control_id: "S3.1"
+    title: "Ensure S3 buckets block public access"
+    section: "Storage"
+    check_ids: [s3-001]
+
+  - control_id: "S3.5"
+    title: "Ensure S3 buckets enforce TLS"
+    section: "Storage"
+    check_ids: []
+
+  - control_id: "RDS.3"
+    title: "Ensure RDS instances have encryption enabled"
+    section: "Database"
+    check_ids: [rds-002]

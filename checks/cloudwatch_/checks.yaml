@@ -1,0 +1,18 @@
+checks:
+  - check_id: cloudwatch-001
+    service: cloudwatch
+    description: CloudWatch log group should have a retention policy
+    pillar: operational_excellence
+    severity: MEDIUM
+    evaluation_logic_ref: "checks.cloudwatch_:check_log_group_retention"
+    remediation_guidance: Set a retention policy on CloudWatch log groups to manage storage costs
+    documentation_url: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/Working-with-log-groups-and-streams.html
+
+  - check_id: cloudwatch-002
+    service: cloudwatch
+    description: CloudWatch log group should have metric filters configured
+    pillar: operational_excellence
+    severity: LOW
+    evaluation_logic_ref: "checks.cloudwatch_:check_metric_alarms"
+    remediation_guidance: Create metric filters and alarms for critical log events
+    documentation_url: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/MonitoringLogData.html

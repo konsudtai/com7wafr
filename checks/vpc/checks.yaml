@@ -1,0 +1,27 @@
+checks:
+  - check_id: vpc-001
+    service: vpc
+    description: VPC should have flow logs enabled
+    pillar: security
+    severity: MEDIUM
+    evaluation_logic_ref: "checks.vpc:check_flow_logs_enabled"
+    remediation_guidance: Enable VPC Flow Logs to capture network traffic for monitoring and troubleshooting
+    documentation_url: https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html
+
+  - check_id: vpc-002
+    service: vpc
+    description: Default security group should restrict all traffic
+    pillar: security
+    severity: HIGH
+    evaluation_logic_ref: "checks.vpc:check_default_sg_restricts_traffic"
+    remediation_guidance: Remove all inbound and outbound rules from the default security group
+    documentation_url: https://docs.aws.amazon.com/vpc/latest/userguide/default-security-group.html
+
+  - check_id: vpc-003
+    service: vpc
+    description: Network ACL should not allow unrestricted SSH access
+    pillar: security
+    severity: HIGH
+    evaluation_logic_ref: "checks.vpc:check_nacl_no_unrestricted_ssh"
+    remediation_guidance: Restrict SSH access in NACLs to specific IP ranges instead of 0.0.0.0/0
+    documentation_url: https://docs.aws.amazon.com/vpc/latest/userguide/vpc-network-acls.html

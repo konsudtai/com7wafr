@@ -17,7 +17,7 @@ const CostPage = (() => {
   function render() {
     return `
       <div class="page-header">
-        <h2>Cost Advisor</h2>
+        <h2>CloudFinOps</h2>
         <p>คำแนะนำการลดค่าใช้จ่าย AWS จากผลการสแกน Well-Architected Review</p>
       </div>
 

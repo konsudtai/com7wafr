@@ -204,6 +204,16 @@ const ReportPage = (() => {
   function fRec(f) { return currentLang === 'th' ? f.rec_th : f.rec_en; }
 
   // --- Render ---
+  // Available compliance frameworks for report inclusion
+  const REPORT_FRAMEWORKS = [
+    { id: 'cis-aws', name: 'CIS AWS Foundations' },
+    { id: 'nist-csf', name: 'NIST CSF' },
+    { id: 'soc2', name: 'SOC 2' },
+    { id: 'wafs', name: 'Well-Architected' },
+    { id: 'spip', name: 'AWS SPIP' },
+  ];
+  let selectedFrameworks = [];
+
   function render() {
     return `
       <div class="page-header flex-between">
@@ -217,6 +227,18 @@ const ReportPage = (() => {
             <option value="en" ${currentLang==='en'?'selected':''}>EN</option>
           </select>
           <button id="btn-export-pdf" class="btn btn-primary">${t('exportPdf')}</button>
+        </div>
+      </div>
+
+      <div class="card mb-24">
+        <h3 style="margin-bottom:8px;">Compliance Frameworks ที่ต้องการรวมในรายงาน</h3>
+        <p class="text-secondary mb-16" style="font-size:0.82rem;">เลือก framework ที่ต้องการแสดงในรายงาน PDF — ข้อมูล compliance จะถูกเพิ่มเป็น appendix</p>
+        <div id="report-framework-checkboxes" style="display:flex; flex-wrap:wrap; gap:12px;">
+          ${REPORT_FRAMEWORKS.map(fw => `
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.88rem; padding:6px 12px; border:1px solid var(--border-default); border-radius:var(--radius-md); background:var(--bg-page);">
+              <input type="checkbox" name="report-framework" value="${fw.id}"> ${fw.name}
+            </label>
+          `).join('')}
         </div>
       </div>
 
@@ -263,7 +285,8 @@ const ReportPage = (() => {
             <tr><td style="border:none; padding:6px 0;">1.</td><td style="border:none; padding:6px 0;">${t('execSummary')}</td></tr>
             <tr><td style="border:none; padding:6px 0;">2.</td><td style="border:none; padding:6px 0;">${t('pillarOverview')}</td></tr>
             ${pillars.map((p,i) => `<tr><td style="border:none; padding:6px 0;">${i+3}.</td><td style="border:none; padding:6px 0;">${pillarName(p.name)}</td></tr>`).join('')}
-            <tr><td style="border:none; padding:6px 0;">${pillars.length+3}.</td><td style="border:none; padding:6px 0;">${t('signOff')}</td></tr>
+            ${selectedFrameworks.length > 0 ? `<tr><td style="border:none; padding:6px 0;">${pillars.length+3}.</td><td style="border:none; padding:6px 0;">Compliance Appendix</td></tr>` : ''}
+            <tr><td style="border:none; padding:6px 0;">${pillars.length + 3 + (selectedFrameworks.length > 0 ? 1 : 0)}.</td><td style="border:none; padding:6px 0;">${t('signOff')}</td></tr>
           </tbody>
         </table>
       </div>
@@ -299,9 +322,12 @@ const ReportPage = (() => {
       <!-- Per-Pillar Sections -->
       ${pillars.map((p,i) => renderPillarSection(p, i)).join('')}
 
+      <!-- Compliance Appendix (if frameworks selected) -->
+      ${renderComplianceAppendix()}
+
       <!-- Sign-Off -->
       <div class="report-page">
-        <h3 style="margin-bottom:16px;">${pillars.length+3}. ${t('signOff')}</h3>
+        <h3 style="margin-bottom:16px;">${pillars.length + 3 + (selectedFrameworks.length > 0 ? 1 : 0)}. ${t('signOff')}</h3>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:40px;">
           <div>
             <p class="text-secondary" style="font-size:0.82rem;">${t('reviewedBy')}</p>
@@ -375,6 +401,120 @@ const ReportPage = (() => {
     `;
   }
 
+  // --- Compliance Appendix ---
+  function getComplianceFrameworks() {
+    // Same embedded data as compliance.js — reuse for report
+    const allFw = [
+      { id: 'cis-aws', name: 'CIS AWS Foundations Benchmark', controls: [
+        { control_id: 'IAM.1', title: 'Avoid use of root account', check_ids: ['iam-001'] },
+        { control_id: 'IAM.5', title: 'Ensure MFA for all IAM users', check_ids: ['iam-003'] },
+        { control_id: 'CloudTrail.1', title: 'CloudTrail enabled in all regions', check_ids: ['cloudtrail-001'] },
+        { control_id: 'CloudTrail.4', title: 'Trails encrypted with KMS', check_ids: ['cloudtrail-002'] },
+        { control_id: 'Config.1', title: 'AWS Config enabled', check_ids: ['config-001'] },
+        { control_id: 'EC2.6', title: 'VPC flow logging enabled', check_ids: ['vpc-001'] },
+        { control_id: 'EC2.7', title: 'EBS volumes encrypted', check_ids: ['ec2-002'] },
+        { control_id: 'KMS.4', title: 'KMS key rotation enabled', check_ids: ['kms-001'] },
+        { control_id: 'S3.1', title: 'S3 buckets block public access', check_ids: ['s3-001'] },
+        { control_id: 'RDS.3', title: 'RDS encryption enabled', check_ids: ['rds-002'] },
+      ]},
+      { id: 'nist-csf', name: 'NIST Cybersecurity Framework', controls: [
+        { control_id: 'PR.AC-1', title: 'Identities and credentials managed', check_ids: ['iam-001', 'iam-002', 'iam-003'] },
+        { control_id: 'PR.DS-1', title: 'Data-at-rest protected', check_ids: ['s3-002', 'rds-002', 'ec2-002'] },
+        { control_id: 'PR.DS-2', title: 'Data-in-transit protected', check_ids: ['cloudfront-001', 'elb-002'] },
+        { control_id: 'PR.PT-1', title: 'Audit/log records maintained', check_ids: ['cloudtrail-001', 'vpc-001'] },
+        { control_id: 'DE.CM-1', title: 'Network monitored', check_ids: ['vpc-001', 'elb-001'] },
+        { control_id: 'RC.RP-1', title: 'Recovery plan executed', check_ids: ['rds-001', 'rds-003'] },
+      ]},
+      { id: 'soc2', name: 'SOC 2 Trust Services', controls: [
+        { control_id: 'CC6.1', title: 'Logical access controls', check_ids: ['iam-001', 'iam-002', 'iam-003', 'vpc-002'] },
+        { control_id: 'CC6.6', title: 'System boundaries protected', check_ids: ['ec2-001', 'vpc-001', 'vpc-003'] },
+        { control_id: 'CC6.7', title: 'Data transmission protected', check_ids: ['cloudfront-001', 'elb-002'] },
+        { control_id: 'CC7.1', title: 'Detection and monitoring', check_ids: ['cloudtrail-001', 'cloudwatch-001', 'vpc-001'] },
+        { control_id: 'CC8.1', title: 'Changes authorized', check_ids: ['config-001'] },
+        { control_id: 'C1.1', title: 'Confidential info protected', check_ids: ['s3-001', 's3-002', 'rds-002', 'kms-001'] },
+      ]},
+      { id: 'wafs', name: 'AWS Well-Architected Framework', controls: [
+        { control_id: 'SEC-01', title: 'Strong identity foundation', check_ids: ['iam-001', 'iam-002', 'iam-003'] },
+        { control_id: 'SEC-02', title: 'Enable traceability', check_ids: ['cloudtrail-001', 'vpc-001'] },
+        { control_id: 'SEC-04', title: 'Protect data', check_ids: ['s3-002', 'rds-002', 'ec2-002', 'kms-001'] },
+        { control_id: 'REL-01', title: 'Auto recover from failure', check_ids: ['rds-001', 'ecs-001'] },
+        { control_id: 'OPS-03', title: 'Anticipate failure', check_ids: ['ec2-003', 'cloudwatch-001'] },
+      ]},
+      { id: 'spip', name: 'AWS SPIP', controls: [
+        { control_id: 'P1.1', title: 'Enable MFA', check_ids: ['iam-003'] },
+        { control_id: 'P2.1', title: 'Block public S3 access', check_ids: ['s3-001'] },
+        { control_id: 'P2.3', title: 'Encrypt data at rest', check_ids: ['s3-002', 'ec2-002', 'rds-002'] },
+        { control_id: 'P3.1', title: 'Restrict security groups', check_ids: ['ec2-001', 'vpc-002', 'vpc-003'] },
+        { control_id: 'P4.1', title: 'Enable CloudTrail', check_ids: ['cloudtrail-001', 'cloudtrail-003'] },
+        { control_id: 'P4.6', title: 'Enable AWS Config', check_ids: ['config-001'] },
+        { control_id: 'P5.3', title: 'KMS key rotation', check_ids: ['kms-001'] },
+      ]},
+    ];
+    return allFw.filter(fw => selectedFrameworks.includes(fw.id));
+  }
+
+  function evalControl(control, allFindings) {
+    if (!control.check_ids || control.check_ids.length === 0) return 'N/A';
+    const related = allFindings.filter(f => control.check_ids.includes(f.check_id));
+    return related.length > 0 ? 'FAIL' : 'PASS';
+  }
+
+  function renderComplianceAppendix() {
+    if (selectedFrameworks.length === 0) return '';
+
+    const fws = getComplianceFrameworks();
+    if (fws.length === 0) return '';
+
+    // Flatten all findings from pillars
+    const allFindings = pillars.flatMap(p => p.findings);
+
+    const num = pillars.length + 3;
+    const label = currentLang === 'th' ? 'Compliance Appendix' : 'Compliance Appendix';
+
+    return `
+      <div class="report-page">
+        <h3 style="margin-bottom:16px;">${num}. ${label}</h3>
+        <p style="font-size:0.94rem; line-height:1.7; margin-bottom:20px;">
+          ${currentLang === 'th'
+            ? 'ส่วนนี้แสดงสถานะ compliance ตาม frameworks ที่เลือก โดย map ผลการตรวจสอบกับ controls ของแต่ละ framework'
+            : 'This section shows compliance status for selected frameworks, mapping scan findings to framework controls.'}
+        </p>
+
+        ${fws.map(fw => {
+          const results = fw.controls.map(c => ({ ...c, status: evalControl(c, allFindings) }));
+          const pass = results.filter(r => r.status === 'PASS').length;
+          const fail = results.filter(r => r.status === 'FAIL').length;
+          const na = results.filter(r => r.status === 'N/A').length;
+          const total = pass + fail;
+          const pct = total > 0 ? Math.round((pass / total) * 100) : 0;
+
+          return `
+            <div style="margin-bottom:24px;">
+              <h4 style="margin-bottom:8px;">${fw.name}</h4>
+              <div style="display:flex; gap:16px; align-items:center; margin-bottom:12px;">
+                <span style="font-size:1.4rem; font-weight:600; color:${pct >= 70 ? 'var(--color-success)' : pct >= 40 ? 'var(--color-warning)' : 'var(--color-error)'};">${pct}%</span>
+                <div class="progress-bar" style="flex:1; max-width:200px;"><div class="progress-bar-fill" style="width:${pct}%;"></div></div>
+                <span class="badge badge-low">${pass} Pass</span>
+                <span class="badge badge-critical">${fail} Fail</span>
+                <span class="badge badge-info">${na} N/A</span>
+              </div>
+              <div class="table-wrapper"><table>
+                <thead><tr><th>Control</th><th>Title</th><th>Status</th></tr></thead>
+                <tbody>
+                  ${results.map(c => `<tr>
+                    <td style="font-family:var(--font-mono); font-size:0.82rem;">${c.control_id}</td>
+                    <td>${c.title}</td>
+                    <td>${c.status === 'PASS' ? '<span class="badge badge-low">PASS</span>' : c.status === 'FAIL' ? '<span class="badge badge-critical">FAIL</span>' : '<span class="badge badge-info">N/A</span>'}</td>
+                  </tr>`).join('')}
+                </tbody>
+              </table></div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
   // --- Export PDF ---
   function exportPDF() {
     const el = document.getElementById('report-content');
@@ -404,6 +544,17 @@ const ReportPage = (() => {
     document.getElementById('report-lang')?.addEventListener('change', (e) => {
       currentLang = e.target.value;
       App.renderPage();
+    });
+
+    // Framework checkbox listeners — re-render report when selection changes
+    document.querySelectorAll('input[name="report-framework"]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        selectedFrameworks = [...document.querySelectorAll('input[name="report-framework"]:checked')].map(c => c.value);
+        const el = document.getElementById('report-content');
+        if (el && el.innerHTML) {
+          el.innerHTML = renderReport();
+        }
+      });
     });
 
     try {

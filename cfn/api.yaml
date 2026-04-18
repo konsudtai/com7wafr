@@ -76,6 +76,17 @@ Resources:
                   - ecs:DescribeClusters
                   - eks:ListClusters
                   - eks:DescribeCluster
+                  - cloudtrail:DescribeTrails
+                  - cloudtrail:GetTrailStatus
+                  - logs:DescribeLogGroups
+                  - config:DescribeConfigurationRecorders
+                  - config:DescribeConfigurationRecorderStatus
+                  - kms:ListKeys
+                  - kms:DescribeKey
+                  - kms:GetKeyRotationStatus
+                  - ec2:DescribeVpcs
+                  - ec2:DescribeFlowLogs
+                  - ec2:DescribeSecurityGroups
                 Resource: '*'
         - PolicyName: CognitoAccess
           PolicyDocument:
