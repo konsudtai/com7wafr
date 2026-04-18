@@ -113,6 +113,28 @@ Resources:
     Properties:
       Name: wa-review-api
 
+  # CORS Gateway Responses — ensures CORS headers on ALL error responses
+  # including preflight failures and missing routes
+  GatewayResponseDefault4XX:
+    Type: AWS::ApiGateway::GatewayResponse
+    Properties:
+      RestApiId: !Ref Api
+      ResponseType: DEFAULT_4XX
+      ResponseParameters:
+        gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+        gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+        gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+
+  GatewayResponseDefault5XX:
+    Type: AWS::ApiGateway::GatewayResponse
+    Properties:
+      RestApiId: !Ref Api
+      ResponseType: DEFAULT_5XX
+      ResponseParameters:
+        gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+        gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+        gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+
   CognitoAuthorizer:
     Type: AWS::ApiGateway::Authorizer
     Properties:
@@ -587,9 +609,11 @@ Resources:
   # CloudFormation to create a new deployment on every update.
   # Bump the suffix (v2, v3, ...) whenever API routes change.
   # ============================================================
-  ApiDeploymentV2:
+  ApiDeploymentV3:
     Type: AWS::ApiGateway::Deployment
     DependsOn:
+      - GatewayResponseDefault4XX
+      - GatewayResponseDefault5XX
       - ScansOptions
       - ScansPost
       - ScansGet
@@ -619,7 +643,7 @@ Resources:
     Type: AWS::ApiGateway::Stage
     Properties:
       RestApiId: !Ref Api
-      DeploymentId: !Ref ApiDeploymentV2
+      DeploymentId: !Ref ApiDeploymentV3
       StageName: prod
 
   # ============================================================
