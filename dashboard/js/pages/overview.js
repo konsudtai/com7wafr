@@ -39,6 +39,12 @@ const OverviewPage = (() => {
       </div>
 
       <div id="overview-content" class="hidden">
+        <!-- Severity Summary Cards (Service Screener style) -->
+        <div id="severity-cards" class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); margin-bottom:24px;"></div>
+
+        <!-- Pillar Cards with severity breakdown -->
+        <div id="pillar-cards" class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom:24px;"></div>
+
         <div class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));">
           <div class="card">
             <h3 style="margin-bottom: 12px;">คะแนนตาม Pillar</h3>
@@ -60,6 +66,9 @@ const OverviewPage = (() => {
             <canvas id="heatmap-chart"></canvas>
           </div>
         </div>
+
+        <h3 style="margin-bottom: 12px;">Services</h3>
+        <div id="service-links" class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom:24px;"></div>
 
         <h3 style="margin-bottom: 12px;">Account Summary</h3>
         <div id="account-cards" class="card-grid"></div>
@@ -122,29 +131,71 @@ const OverviewPage = (() => {
     const findings = data.findings || [];
     const accounts = data.accounts || [];
 
-    // Pillar scores
-    const pillarMap = {};
-    const pillarTotal = {};
-    findings.forEach(f => {
-      const p = f.pillar || 'Unknown';
-      pillarMap[p] = (pillarMap[p] || 0) + 1;
-      pillarTotal[p] = (pillarTotal[p] || 0) + 1;
-    });
-    const allPillars = ['Security', 'Reliability', 'Operational Excellence', 'Performance Efficiency', 'Cost Optimization'];
-    pillarScores = {};
-    allPillars.forEach(p => {
-      const count = pillarMap[p] || 0;
-      pillarScores[p] = Math.max(0, 100 - count * 5);
-    });
-
     // Severity counts
     severityCounts = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFORMATIONAL: 0 };
     findings.forEach(f => {
       const s = (f.severity || '').toUpperCase();
       if (s in severityCounts) severityCounts[s]++;
     });
+    const totalFindings = findings.length;
 
-    // Heatmap
+    // Render severity summary cards (Service Screener style)
+    const sevCardsEl = document.getElementById('severity-cards');
+    if (sevCardsEl) {
+      const sevColors = { CRITICAL: '#b53333', HIGH: '#d97757', MEDIUM: '#b8860b', LOW: '#2d7d46', INFORMATIONAL: '#5e5d59' };
+      sevCardsEl.innerHTML = Object.entries(severityCounts)
+        .filter(([, v]) => v > 0)
+        .map(([sev, count]) => `
+          <div class="card" style="text-align:center; border-top:3px solid ${sevColors[sev]}; padding:16px;">
+            <span class="badge" style="background:${sevColors[sev]}; color:#fff;">${sev}</span>
+            <p style="font-size:1.8rem; font-weight:600; margin:4px 0;">${count}</p>
+            <p class="text-secondary" style="font-size:0.78rem;">(${totalFindings > 0 ? Math.round(count/totalFindings*100) : 0}%)</p>
+          </div>
+        `).join('');
+    }
+
+    // Pillar scores + cards
+    const pillarMap = {};
+    findings.forEach(f => {
+      const p = f.pillar || 'Unknown';
+      if (!pillarMap[p]) pillarMap[p] = { total: 0, CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFORMATIONAL: 0 };
+      pillarMap[p].total++;
+      const s = (f.severity || '').toUpperCase();
+      if (s in pillarMap[p]) pillarMap[p][s]++;
+    });
+
+    const allPillars = ['Security', 'Reliability', 'Operational Excellence', 'Performance Efficiency', 'Cost Optimization'];
+    pillarScores = {};
+    allPillars.forEach(p => {
+      const count = pillarMap[p]?.total || 0;
+      pillarScores[p] = Math.max(0, 100 - count * 5);
+    });
+
+    // Render pillar cards with severity breakdown
+    const pillarCardsEl = document.getElementById('pillar-cards');
+    if (pillarCardsEl) {
+      const pillarColors = { Security: '#DD344C', Reliability: '#3334B9', 'Operational Excellence': '#3F8624', 'Performance Efficiency': '#8C4FFF', 'Cost Optimization': '#ED7100' };
+      pillarCardsEl.innerHTML = allPillars.map(p => {
+        const d = pillarMap[p] || { total: 0, CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFORMATIONAL: 0 };
+        return `
+          <div class="card" style="border-top:3px solid ${pillarColors[p] || '#999'}; padding:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-size:1.4rem; font-weight:600;">${d.total}</span>
+              <span style="font-size:0.82rem; font-weight:500;">${p}</span>
+            </div>
+            <div style="display:flex; gap:4px; font-size:0.72rem;">
+              ${d.CRITICAL ? `<span class="badge badge-critical">${d.CRITICAL}</span>` : ''}
+              ${d.HIGH ? `<span class="badge badge-high">${d.HIGH}</span>` : ''}
+              ${d.MEDIUM ? `<span class="badge badge-medium">${d.MEDIUM}</span>` : ''}
+              ${d.LOW ? `<span class="badge badge-low">${d.LOW}</span>` : ''}
+              ${d.INFORMATIONAL ? `<span class="badge badge-info">${d.INFORMATIONAL}</span>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Heatmap data
     const serviceSet = new Set();
     findings.forEach(f => serviceSet.add(f.service || 'Unknown'));
     const services = [...serviceSet].sort();
@@ -152,6 +203,22 @@ const OverviewPage = (() => {
     const pillarKeyMap = { 'Security': 'Security', 'Reliability': 'Reliability', 'Ops Excellence': 'Operational Excellence', 'Performance': 'Performance Efficiency', 'Cost': 'Cost Optimization' };
     const values = services.map(svc => pillarList.map(p => findings.filter(f => f.service === svc && f.pillar === pillarKeyMap[p]).length));
     heatmapData = { services, pillars: pillarList, values };
+
+    // Service links (clickable → service detail page)
+    const serviceLinksEl = document.getElementById('service-links');
+    if (serviceLinksEl) {
+      const svcCounts = {};
+      findings.forEach(f => { const s = f.service || 'Unknown'; svcCounts[s] = (svcCounts[s] || 0) + 1; });
+      serviceLinksEl.innerHTML = Object.entries(svcCounts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([svc, count]) => `
+          <a href="#service/${svc.toLowerCase()}" class="card" style="text-decoration:none; color:inherit; padding:16px; text-align:center; cursor:pointer; transition:box-shadow 0.15s;">
+            <p style="font-size:1.2rem; font-weight:600;">${count}</p>
+            <p style="font-size:0.88rem; font-weight:500;">${svc}</p>
+            <p class="text-secondary" style="font-size:0.72rem;">Click to view details →</p>
+          </a>
+        `).join('');
+    }
 
     // Account summaries
     accountSummaries = accounts.length > 0 ? accounts : [];

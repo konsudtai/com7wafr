@@ -33,6 +33,8 @@ const App = (() => {
   // --- Routing ---
   function getHashRoute() {
     const hash = window.location.hash.replace('#', '') || 'overview';
+    // Handle service detail routes: #service/ec2, #service/s3, etc.
+    if (hash.startsWith('service/')) return hash;
     return routes[hash] ? hash : 'overview';
   }
 
@@ -58,6 +60,21 @@ const App = (() => {
     state.currentPage = page;
     const content = document.getElementById('content');
     const sidebar = document.getElementById('sidebar');
+
+    // Handle service detail routes: #service/ec2
+    if (page.startsWith('service/')) {
+      const serviceName = page.split('/')[1];
+      if (sidebar) sidebar.style.display = '';
+      if (content) { content.style.marginLeft = ''; content.style.padding = ''; }
+      if (typeof ServiceDetailPage !== 'undefined') {
+        content.innerHTML = ServiceDetailPage.render(serviceName);
+        document.title = `${serviceName.toUpperCase()} — WA Review Tool`;
+        ServiceDetailPage.init(serviceName);
+      }
+      updateNavActive('findings'); // highlight findings nav
+      return;
+    }
+
     const route = routes[page];
 
     // Hide sidebar on login page, show on other pages
