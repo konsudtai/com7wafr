@@ -86,10 +86,11 @@ window.App = {};
   }
 
   const routes = {
-    overview:  { group:'monitor', label:'Overview',    render: PAGES.overview,  subtabs:[['overview','Overview'],['findings','Findings'],['compliance','Compliance'],['history','History']] },
-    findings:  { group:'monitor', label:'Findings',    render: PAGES.findings,  subtabs:[['overview','Overview'],['findings','Findings'],['compliance','Compliance'],['history','History']] },
-    compliance:{ group:'monitor', label:'Compliance',  render: PAGES.compliance,subtabs:[['overview','Overview'],['findings','Findings'],['compliance','Compliance'],['history','History']] },
-    history:   { group:'monitor', label:'History',     render: PAGES.history,   subtabs:[['overview','Overview'],['findings','Findings'],['compliance','Compliance'],['history','History']] },
+    overview:  { group:'monitor', label:'Overview',    render: PAGES.overview,  subtabs:[['overview','Overview'],['findings','Findings'],['compliance','Compliance'],['investigate','Investigate'],['history','History']] },
+    findings:  { group:'monitor', label:'Findings',    render: PAGES.findings,  subtabs:[['overview','Overview'],['findings','Findings'],['compliance','Compliance'],['investigate','Investigate'],['history','History']] },
+    compliance:{ group:'monitor', label:'Compliance',  render: PAGES.compliance,subtabs:[['overview','Overview'],['findings','Findings'],['compliance','Compliance'],['investigate','Investigate'],['history','History']] },
+    investigate:{ group:'monitor', label:'Investigate', render: PAGES.investigate,subtabs:[['overview','Overview'],['findings','Findings'],['compliance','Compliance'],['investigate','Investigate'],['history','History']] },
+    history:   { group:'monitor', label:'History',     render: PAGES.history,   subtabs:[['overview','Overview'],['findings','Findings'],['compliance','Compliance'],['investigate','Investigate'],['history','History']] },
     accounts:  { group:'manage',  label:'Accounts',    render: PAGES.accounts,  subtabs:[['accounts','Accounts'],['scan','Scan'],['team','Team']] },
     scan:      { group:'manage',  label:'Scan',        render: PAGES.scan,      subtabs:[['accounts','Accounts'],['scan','Scan'],['team','Team']] },
     team:      { group:'manage',  label:'Team',        render: PAGES.team,      subtabs:[['accounts','Accounts'],['scan','Scan'],['team','Team']] },
@@ -158,6 +159,8 @@ window.App = {};
     wireAvatarMenu();
     wireFinOps();
     wireCompliance();
+    wireInvestigate();
+    wireAIChat();
 
     // Update avatar
     const avatarBtn = document.getElementById('avatarBtn');
@@ -667,16 +670,71 @@ echo "Copy the ARN above and paste it in the WA Review Platform."`;
     async function generatePDF(triggerBtn) {
       triggerBtn.disabled = true;
       triggerBtn.textContent = 'Generating...';
+
       try {
         const preview = document.getElementById('report-preview');
         if (!preview) { alert('No report preview found'); return; }
+
         const clone = preview.cloneNode(true);
         clone.style.background = '#ffffff';
         clone.style.color = '#1a1a1a';
         clone.style.maxWidth = '800px';
         clone.style.borderRadius = '0';
         clone.style.boxShadow = 'none';
+
+        // Replace CSS color-mix and var() with static colors for html2canvas compatibility
+        const cssVarMap = {
+          'var(--s-crit)':'#b53333','var(--s-high)':'#d97757','var(--s-med)':'#b8860b','var(--s-low)':'#2d7d46','var(--s-info)':'#5e5d59',
+          'var(--ac-500)':'#c96442','var(--ac-600)':'#b5542f','var(--ac-100)':'#f7e1d6','var(--ac-400)':'#d97757',
+          'var(--text)':'#141413','var(--text-2)':'#5e5d59','var(--text-3)':'#87867f',
+          'var(--surface)':'#f5f4ed','var(--surface-2)':'#ffffff','var(--bg)':'#f0eee6',
+          'var(--line)':'#e8e6dc','var(--line-2)':'#cfccbf',
+          'var(--ink-100)':'#f0eee6','var(--ink-900)':'#141413',
+        };
+        const allEls = clone.querySelectorAll('*');
+        allEls.forEach(el => {
+          const s = el.getAttribute('style');
+          if (!s) return;
+          let fixed = s;
+          // Replace color-mix with fallback
+          fixed = fixed.replace(/color-mix\(in oklab,\s*var\(--s-crit\)\s*\d+%,\s*transparent\)/g, '#f5d5d5');
+          fixed = fixed.replace(/color-mix\(in oklab,\s*var\(--s-high\)\s*\d+%,\s*transparent\)/g, '#fde8d8');
+          fixed = fixed.replace(/color-mix\(in oklab,\s*var\(--s-med\)\s*\d+%,\s*transparent\)/g, '#f5ecd0');
+          fixed = fixed.replace(/color-mix\(in oklab,\s*var\(--s-low\)\s*\d+%,\s*transparent\)/g, '#d5f0dd');
+          fixed = fixed.replace(/color-mix\(in oklab,\s*var\(--s-info\)\s*\d+%,\s*transparent\)/g, '#ececec');
+          fixed = fixed.replace(/color-mix\(in oklab,\s*var\(--ac-500\)\s*\d+%,\s*transparent\)/g, '#f7e1d6');
+          fixed = fixed.replace(/color-mix\(in oklab,\s*var\(--ac-100\)\s*\d+%,\s*transparent\)/g, '#faf3ee');
+          fixed = fixed.replace(/color-mix\(in oklab,[^)]*\)/g, '#f0eee6');
+          // Replace var() references
+          Object.entries(cssVarMap).forEach(([v, c]) => { fixed = fixed.split(v).join(c); });
+          // Replace any remaining var()
+          fixed = fixed.replace(/var\(--[^)]+\)/g, '#141413');
+          if (fixed !== s) el.setAttribute('style', fixed);
+        });
+
+        // Also fix badge classes that use color-mix via CSS classes
+        clone.querySelectorAll('.badge').forEach(b => {
+          const cls = b.className;
+          if (cls.includes('badge--crit')) { b.style.background = '#f5d5d5'; b.style.color = '#b53333'; }
+          else if (cls.includes('badge--high')) { b.style.background = '#fde8d8'; b.style.color = '#8a3f20'; }
+          else if (cls.includes('badge--med')) { b.style.background = '#f5ecd0'; b.style.color = '#8a6500'; }
+          else if (cls.includes('badge--low')) { b.style.background = '#d5f0dd'; b.style.color = '#2d7d46'; }
+          else if (cls.includes('badge--info')) { b.style.background = '#ececec'; b.style.color = '#5e5d59'; }
+          else if (cls.includes('badge--outline')) { b.style.background = 'transparent'; b.style.border = '1px solid #cfccbf'; b.style.color = '#5e5d59'; }
+        });
+        clone.querySelectorAll('.pillar__bar > span').forEach(bar => {
+          if (!bar.style.background || bar.style.background.includes('var(')) bar.style.background = '#c96442';
+        });
+        clone.querySelectorAll('.sq').forEach(sq => {
+          const cls = sq.className;
+          if (cls.includes('sq--crit')) sq.style.background = '#b53333';
+          else if (cls.includes('sq--high')) sq.style.background = '#d97757';
+          else if (cls.includes('sq--med')) sq.style.background = '#b8860b';
+          else if (cls.includes('sq--low')) sq.style.background = '#2d7d46';
+        });
+
         document.body.appendChild(clone);
+
         await html2pdf().set({
           margin: [8, 8, 8, 8],
           filename: 'AWS-WA-Review-Report-' + new Date().toISOString().slice(0,10) + '.pdf',
@@ -685,14 +743,89 @@ echo "Copy the ARN above and paste it in the WA Review Platform."`;
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
           pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
         }).from(clone).save();
+
         document.body.removeChild(clone);
-      } catch (err) { alert('PDF generation error: ' + err.message); }
+      } catch (err) {
+        alert('PDF generation error: ' + err.message);
+      }
+
       triggerBtn.disabled = false;
       triggerBtn.textContent = 'Generate PDF';
     }
 
     if (btn) btn.addEventListener('click', () => generatePDF(btn));
     if (btn2) btn2.addEventListener('click', () => generatePDF(btn2));
+  }
+
+  // ==================== INVESTIGATE (CloudTrail) ====================
+  function wireInvestigate() {
+    const btn = document.getElementById('btn-investigate');
+    if (!btn) return;
+
+    btn.addEventListener('click', async () => {
+      const acctId = document.getElementById('inv-acct').value;
+      const region = document.getElementById('inv-region').value;
+      const hours = parseInt(document.getElementById('inv-time').value);
+      const username = document.getElementById('inv-user').value.trim();
+      const eventName = document.getElementById('inv-event').value.trim();
+      const maxResults = parseInt(document.getElementById('inv-max').value);
+
+      if (!acctId) { alert('Please select an account'); return; }
+
+      btn.disabled = true;
+      btn.textContent = 'Searching...';
+      const resultsEl = document.getElementById('inv-results');
+      const summaryEl = document.getElementById('inv-summary');
+      resultsEl.innerHTML = '<div style="padding:40px; text-align:center;"><div class="t2">Querying CloudTrail...</div></div>';
+
+      const endTime = new Date().toISOString();
+      const startTime = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+
+      const body = { accountId: acctId, region, startTime, endTime, maxResults };
+      if (username) body.username = username;
+      if (eventName) body.eventName = eventName;
+
+      try {
+        const data = await ApiClient.post('/investigate', body);
+        const events = data.events || [];
+        const s = data.summary || {};
+
+        // Summary cards
+        summaryEl.style.display = 'block';
+        summaryEl.innerHTML = '<div class="grid grid-4" style="gap:8px; grid-template-columns:repeat(6,1fr);">' +
+          '<div style="padding:12px; background:var(--surface-2); border-radius:var(--r-sm); text-align:center; box-shadow:var(--shadow-1);"><div class="t3" style="font-size:10px;">Events</div><div style="font-family:var(--font-display); font-size:24px;">' + (s.totalEvents||0) + '</div></div>' +
+          '<div style="padding:12px; background:var(--surface-2); border-radius:var(--r-sm); text-align:center; box-shadow:var(--shadow-1);"><div class="t3" style="font-size:10px;">Alerts</div><div style="font-family:var(--font-display); font-size:24px; color:var(--s-crit);">' + (s.alerts||0) + '</div></div>' +
+          '<div style="padding:12px; background:var(--surface-2); border-radius:var(--r-sm); text-align:center; box-shadow:var(--shadow-1);"><div class="t3" style="font-size:10px;">Warnings</div><div style="font-family:var(--font-display); font-size:24px; color:var(--s-med);">' + (s.warnings||0) + '</div></div>' +
+          '<div style="padding:12px; background:var(--surface-2); border-radius:var(--r-sm); text-align:center; box-shadow:var(--shadow-1);"><div class="t3" style="font-size:10px;">Errors</div><div style="font-family:var(--font-display); font-size:24px; color:var(--s-high);">' + (s.errors||0) + '</div></div>' +
+          '<div style="padding:12px; background:var(--surface-2); border-radius:var(--r-sm); text-align:center; box-shadow:var(--shadow-1);"><div class="t3" style="font-size:10px;">Users</div><div style="font-family:var(--font-display); font-size:24px;">' + (s.uniqueUsers||0) + '</div></div>' +
+          '<div style="padding:12px; background:var(--surface-2); border-radius:var(--r-sm); text-align:center; box-shadow:var(--shadow-1);"><div class="t3" style="font-size:10px;">IPs</div><div style="font-family:var(--font-display); font-size:24px;">' + (s.uniqueIPs||0) + '</div></div>' +
+        '</div>';
+
+        // Events table
+        if (!events.length) {
+          resultsEl.innerHTML = '<div style="padding:40px; text-align:center;"><p class="t2">No events found for this query.</p></div>';
+        } else {
+          const riskColor = r => r === 'alert' ? 'var(--s-crit)' : r === 'warning' ? 'var(--s-med)' : 'transparent';
+          const riskBadge = r => r === 'alert' ? '<span class="badge badge--crit">ALERT</span>' : r === 'warning' ? '<span class="badge badge--med">WARNING</span>' : '';
+          resultsEl.innerHTML = '<table class="tbl" style="font-size:12px;"><thead><tr><th>Time</th><th>Event</th><th>User</th><th>Source IP</th><th>Risk</th><th>Error</th></tr></thead><tbody>' +
+            events.map(e => '<tr style="border-left:3px solid ' + riskColor(e.risk) + ';">' +
+              '<td class="mono" style="font-size:11px; white-space:nowrap;">' + (e.eventTime||'').replace('T',' ').substring(0,19) + '</td>' +
+              '<td><strong>' + e.eventName + '</strong><div class="t3" style="font-size:10px;">' + e.eventSource + '</div></td>' +
+              '<td>' + e.username + '<div class="t3" style="font-size:10px;">' + e.userType + '</div></td>' +
+              '<td class="mono" style="font-size:11px;">' + e.sourceIP + '</td>' +
+              '<td>' + riskBadge(e.risk) + '</td>' +
+              '<td style="color:var(--s-crit); font-size:11px;">' + (e.errorCode ? e.errorCode + (e.errorMessage ? '<div class="t3" style="font-size:10px;">' + e.errorMessage.substring(0,60) + '</div>' : '') : '') + '</td>' +
+            '</tr>').join('') +
+          '</tbody></table>';
+        }
+      } catch (err) {
+        resultsEl.innerHTML = '<div style="padding:40px; text-align:center; color:var(--s-crit);"><p>Error: ' + err.message + '</p></div>';
+        summaryEl.style.display = 'none';
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Search Events';
+    });
   }
 
   // ==================== COMPLIANCE FRAMEWORK TABS ====================
@@ -1164,6 +1297,133 @@ echo "Copy the ARN above and paste it in the WA Review Platform."`;
     document.querySelectorAll('.tweaks [data-tw]').forEach(sel => {
       sel.addEventListener('change', e => applyTweaks({ [sel.dataset.tw]: sel.value }));
     });
+  }
+
+  // ==================== AI CHAT ====================
+  function wireAIChat() {
+    const fab = document.getElementById('ai-fab');
+    const panel = document.getElementById('ai-chat');
+    const closeBtn = document.getElementById('ai-close');
+    const input = document.getElementById('ai-input');
+    const sendBtn = document.getElementById('ai-send');
+    const messagesEl = document.getElementById('ai-messages');
+    if (!fab || !panel) return;
+
+    let chatHistory = [];
+
+    function toggleChat() {
+      const visible = panel.style.display !== 'none';
+      panel.style.display = visible ? 'none' : 'flex';
+      if (!visible && messagesEl && !messagesEl.children.length) {
+        addMessage('ai', 'สวัสดีครับ ผม WA Agent ช่วยวิเคราะห์ security, compliance, cost และ investigate CloudTrail events ได้ครับ ถามได้เลย!');
+      }
+      if (!visible) setTimeout(() => input?.focus(), 100);
+    }
+
+    fab.addEventListener('click', toggleChat);
+    closeBtn?.addEventListener('click', () => { panel.style.display = 'none'; });
+
+    function addMessage(type, text) {
+      if (!messagesEl) return;
+      const div = document.createElement('div');
+      div.className = 'ai-msg ai-msg--' + type;
+      if (type === 'ai') {
+        // Simple markdown-like formatting
+        div.innerHTML = text
+          .replace(/```([\s\S]*?)```/g, '<pre>$1</pre>')
+          .replace(/`([^`]+)`/g, '<code style="background:var(--surface-2);padding:1px 4px;border-radius:3px;font-size:12px;">$1</code>')
+          .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+          .replace(/\n/g, '<br>');
+      } else {
+        div.textContent = text;
+      }
+      messagesEl.appendChild(div);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function addActionCard(action) {
+      if (!messagesEl) return;
+      const div = document.createElement('div');
+      div.className = 'ai-action';
+      div.innerHTML = `
+        <div class="flex between center mb-8">
+          <strong style="font-size:13px;">Proposed Action</strong>
+          <span class="ai-action__risk ai-action__risk--${action.risk || 'LOW'}">${action.risk || 'LOW'} Risk</span>
+        </div>
+        <div style="font-size:13px; margin-bottom:8px;">${action.description || action.action}</div>
+        <div class="flex gap-8 wrap mb-8" style="font-size:11px;">
+          <span class="chip mono">${action.accountId || ''}</span>
+          <span class="chip mono">${action.resourceId || ''}</span>
+          <span class="chip">${action.action || ''}</span>
+          ${action.reversible !== false ? '<span class="chip" style="color:var(--s-low)">Reversible</span>' : '<span class="chip" style="color:var(--s-crit)">Not reversible</span>'}
+        </div>
+        <div class="flex gap-8">
+          <button class="btn btn--accent btn--sm ai-approve" data-action='${JSON.stringify(action).replace(/'/g,"&#39;")}'>Approve & Execute</button>
+          <button class="btn btn--sm btn--ghost ai-reject">Reject</button>
+        </div>
+      `;
+      messagesEl.appendChild(div);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+
+      // Wire approve/reject
+      div.querySelector('.ai-approve')?.addEventListener('click', async (e) => {
+        const btn = e.target;
+        const act = JSON.parse(btn.dataset.action);
+        btn.disabled = true; btn.textContent = 'Executing...';
+        try {
+          const res = await ApiClient.post('/ai/execute', act);
+          if (res.success) {
+            addMessage('ai', 'Action executed successfully: ' + res.message);
+          } else {
+            addMessage('ai', 'Execution failed: ' + res.message);
+          }
+        } catch (err) {
+          addMessage('ai', 'Error: ' + err.message);
+        }
+        div.remove();
+      });
+      div.querySelector('.ai-reject')?.addEventListener('click', () => {
+        addMessage('system', 'Action rejected');
+        div.remove();
+      });
+    }
+
+    async function sendMessage() {
+      const text = input?.value?.trim();
+      if (!text) return;
+      input.value = '';
+      addMessage('user', text);
+
+      const model = document.getElementById('ai-model')?.value || 'sonnet-4.6';
+      const thinkingDiv = document.createElement('div');
+      thinkingDiv.className = 'ai-msg ai-msg--system';
+      thinkingDiv.textContent = 'Thinking...';
+      messagesEl?.appendChild(thinkingDiv);
+
+      try {
+        const res = await ApiClient.post('/ai/chat', { message: text, model, history: chatHistory });
+        thinkingDiv.remove();
+
+        if (res.response) {
+          addMessage('ai', res.response);
+          chatHistory.push({ role: 'user', content: text });
+          chatHistory.push({ role: 'assistant', content: res.response });
+          // Keep history manageable
+          if (chatHistory.length > 20) chatHistory = chatHistory.slice(-16);
+        }
+
+        // Show pending actions
+        if (res.pendingActions && res.pendingActions.length > 0) {
+          res.pendingActions.forEach(action => addActionCard(action));
+        }
+      } catch (err) {
+        thinkingDiv.remove();
+        addMessage('ai', 'Error: ' + err.message);
+      }
+    }
+
+    sendBtn?.addEventListener('click', sendMessage);
+    input?.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
   }
 
   // ==================== BOOT ====================

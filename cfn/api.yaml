@@ -78,6 +78,7 @@ Resources:
                   - eks:DescribeCluster
                   - cloudtrail:DescribeTrails
                   - cloudtrail:GetTrailStatus
+                  - cloudtrail:LookupEvents
                   - logs:DescribeLogGroups
                   - config:DescribeConfigurationRecorders
                   - config:DescribeConfigurationRecorderStatus
@@ -108,6 +109,13 @@ Resources:
               - Effect: Allow
                 Action: [cognito-idp:AdminCreateUser, cognito-idp:AdminDeleteUser, cognito-idp:AdminUpdateUserAttributes, cognito-idp:AdminUserGlobalSignOut, cognito-idp:ListUsers]
                 Resource: !Ref UserPoolArn
+        - PolicyName: BedrockAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [bedrock:InvokeModel, bedrock:InvokeModelWithResponseStream]
+                Resource: 'arn:aws:bedrock:*::foundation-model/*'
 
   # Lambda Functions
   ScanHandler:
@@ -160,6 +168,24 @@ Resources:
         Variables:
           TABLE_NAME: !Ref TableName
           USER_POOL_ID: !Ref UserPoolId
+
+  AIHandler:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: wa-review-ai-handler
+      Runtime: nodejs20.x
+      Handler: dist/handlers/ai-handler.handler
+      Code:
+        S3Bucket: !Ref S3BucketName
+        S3Key: !Ref LambdaCodeKey
+      MemorySize: 512
+      Timeout: 120
+      Role: !GetAtt LambdaRole.Arn
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TableName
+          USER_POOL_ID: !Ref UserPoolId
+          BEDROCK_REGION: us-east-1
 
   # API Gateway
   Api:
@@ -337,6 +363,135 @@ Resources:
       RestApiId: !Ref Api
       ResourceId: !Ref ScanIdResultsResource
       HttpMethod: GET
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ScanHandler.Arn}/invocations'
+
+  # ============================================================
+  # /ai/chat + /ai/execute (AI Copilot)
+  # ============================================================
+  AIResource:
+    Type: AWS::ApiGateway::Resource
+    Properties: {RestApiId: !Ref Api, ParentId: !GetAtt Api.RootResourceId, PathPart: ai}
+
+  AIChatResource:
+    Type: AWS::ApiGateway::Resource
+    Properties: {RestApiId: !Ref Api, ParentId: !Ref AIResource, PathPart: chat}
+
+  AIChatOptions:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref AIChatResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates: {application/json: '{"statusCode": 200}'}
+        IntegrationResponses:
+          - StatusCode: '200'
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+      MethodResponses:
+        - StatusCode: '200'
+          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}
+
+  AIChatPost:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref AIChatResource
+      HttpMethod: POST
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AIHandler.Arn}/invocations'
+
+  AIExecuteResource:
+    Type: AWS::ApiGateway::Resource
+    Properties: {RestApiId: !Ref Api, ParentId: !Ref AIResource, PathPart: execute}
+
+  AIExecuteOptions:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref AIExecuteResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates: {application/json: '{"statusCode": 200}'}
+        IntegrationResponses:
+          - StatusCode: '200'
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+      MethodResponses:
+        - StatusCode: '200'
+          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}
+
+  AIExecutePost:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref AIExecuteResource
+      HttpMethod: POST
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AIHandler.Arn}/invocations'
+
+  AIPermission:
+    Type: AWS::Lambda::Permission
+    Properties: {FunctionName: !Ref AIHandler, Action: lambda:InvokeFunction, Principal: apigateway.amazonaws.com, SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*'}
+
+  # ============================================================
+  # /investigate (CloudTrail Investigation)
+  # ============================================================
+  InvestigateResource:
+    Type: AWS::ApiGateway::Resource
+    Properties: {RestApiId: !Ref Api, ParentId: !GetAtt Api.RootResourceId, PathPart: investigate}
+
+  InvestigateOptions:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref InvestigateResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: '200'
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+      MethodResponses:
+        - StatusCode: '200'
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+  InvestigatePost:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref InvestigateResource
+      HttpMethod: POST
       AuthorizationType: COGNITO_USER_POOLS
       AuthorizerId: !Ref CognitoAuthorizer
       Integration:
@@ -663,7 +818,7 @@ Resources:
   # CloudFormation to create a new deployment on every update.
   # Bump the suffix (v2, v3, ...) whenever API routes change.
   # ============================================================
-  ApiDeploymentV4:
+  ApiDeploymentV5:
     Type: AWS::ApiGateway::Deployment
     DependsOn:
       - GatewayResponseDefault4XX
@@ -675,6 +830,12 @@ Resources:
       - ScanIdStatusGet
       - ScanIdResultsOptions
       - ScanIdResultsGet
+      - InvestigateOptions
+      - InvestigatePost
+      - AIChatOptions
+      - AIChatPost
+      - AIExecuteOptions
+      - AIExecutePost
       - AccountsOptions
       - AccountsPost
       - AccountsGet
@@ -697,7 +858,7 @@ Resources:
     Type: AWS::ApiGateway::Stage
     Properties:
       RestApiId: !Ref Api
-      DeploymentId: !Ref ApiDeploymentV4
+      DeploymentId: !Ref ApiDeploymentV5
       StageName: prod
 
   # ============================================================

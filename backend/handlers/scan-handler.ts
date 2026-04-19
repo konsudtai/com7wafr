@@ -1516,6 +1516,135 @@ async function listScanHistory(event: APIGatewayProxyEvent): Promise<APIGatewayP
 }
 
 
+/**
+ * POST /investigate — Query CloudTrail events for investigation.
+ * Body: { accountId, region?, startTime?, endTime?, username?, eventName?, resourceType?, maxResults? }
+ */
+async function investigateCloudTrail(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  const authError = validateRequest(event);
+  if (authError) return authError;
+
+  const claims = extractClaims(event);
+  const userRole = extractUserRole(claims);
+  if (!checkAuthorization(userRole, '/scans', 'POST')) {
+    return jsonResponse(403, { message: 'Forbidden: Admin role required' });
+  }
+
+  if (!event.body) return jsonResponse(400, { message: 'Request body required' });
+  let body: Record<string, unknown>;
+  try { body = JSON.parse(event.body); } catch { return jsonResponse(400, { message: 'Invalid JSON' }); }
+
+  const accountId = body.accountId as string;
+  if (!accountId) return jsonResponse(400, { message: 'accountId is required' });
+
+  const region = (body.region as string) || 'ap-southeast-1';
+  const maxResults = Math.min((body.maxResults as number) || 50, 200);
+
+  // Look up account to get roleArn
+  const acctRecord = await docClient.send(
+    new GetCommand({ TableName: TABLE_NAME, Key: { PK: `ACCOUNT#${accountId}`, SK: 'META' } }),
+  );
+  if (!acctRecord.Item) return jsonResponse(404, { message: 'Account not found' });
+  const roleArn = acctRecord.Item.roleArn as string;
+
+  // AssumeRole into target account
+  let credentials: { accessKeyId: string; secretAccessKey: string; sessionToken: string };
+  try {
+    const assumeResult = await stsClient.send(new AssumeRoleCommand({
+      RoleArn: roleArn,
+      RoleSessionName: `wa-investigate-${accountId.substring(0, 8)}`,
+      ExternalId: `wa-review-${accountId}`,
+      DurationSeconds: 900,
+    }));
+    if (!assumeResult.Credentials) return jsonResponse(500, { message: 'No credentials returned' });
+    credentials = {
+      accessKeyId: assumeResult.Credentials.AccessKeyId!,
+      secretAccessKey: assumeResult.Credentials.SecretAccessKey!,
+      sessionToken: assumeResult.Credentials.SessionToken!,
+    };
+  } catch (err) {
+    return jsonResponse(500, { message: `AssumeRole failed: ${err instanceof Error ? err.message : err}` });
+  }
+
+  // Query CloudTrail
+  try {
+    const { CloudTrailClient, LookupEventsCommand, LookupAttributeKey } = await import('@aws-sdk/client-cloudtrail');
+    const ct = new CloudTrailClient({
+      region,
+      credentials: { accessKeyId: credentials.accessKeyId, secretAccessKey: credentials.secretAccessKey, sessionToken: credentials.sessionToken },
+    });
+
+    const lookupAttrs: { AttributeKey: typeof LookupAttributeKey[keyof typeof LookupAttributeKey]; AttributeValue: string }[] = [];
+    if (body.username) lookupAttrs.push({ AttributeKey: 'Username' as typeof LookupAttributeKey[keyof typeof LookupAttributeKey], AttributeValue: body.username as string });
+    if (body.eventName) lookupAttrs.push({ AttributeKey: 'EventName' as typeof LookupAttributeKey[keyof typeof LookupAttributeKey], AttributeValue: body.eventName as string });
+    if (body.resourceType) lookupAttrs.push({ AttributeKey: 'ResourceType' as typeof LookupAttributeKey[keyof typeof LookupAttributeKey], AttributeValue: body.resourceType as string });
+
+    const startTime = body.startTime ? new Date(body.startTime as string) : new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const endTime = body.endTime ? new Date(body.endTime as string) : new Date();
+
+    const resp = await ct.send(new LookupEventsCommand({
+      LookupAttributes: lookupAttrs.length > 0 ? lookupAttrs : undefined,
+      StartTime: startTime,
+      EndTime: endTime,
+      MaxResults: maxResults,
+    }));
+
+    const events = (resp.Events ?? []).map(e => {
+      let detail: Record<string, unknown> = {};
+      try { detail = JSON.parse(e.CloudTrailEvent || '{}'); } catch { /* ignore */ }
+      const errorCode = (detail.errorCode as string) || '';
+      const errorMsg = (detail.errorMessage as string) || '';
+      const sourceIP = (detail.sourceIPAddress as string) || '';
+      const userAgent = (detail.userAgent as string) || '';
+      const userIdentity = detail.userIdentity as Record<string, unknown> || {};
+
+      // Flag suspicious events
+      let risk = 'normal';
+      const eName = (e.EventName || '').toLowerCase();
+      if (errorCode === 'AccessDenied' || errorCode === 'UnauthorizedAccess') risk = 'warning';
+      if (eName.includes('consolesignin') && errorCode) risk = 'alert';
+      if ((userIdentity.type as string) === 'Root') risk = 'alert';
+      if (eName.includes('delete') || eName.includes('remove') || eName.includes('terminate')) risk = 'warning';
+      if (eName.includes('createuser') || eName.includes('attachpolicy') || eName.includes('putpolicy')) risk = 'warning';
+      if (eName.includes('authorizesecuritygroup') || eName.includes('revokesecuritygroup')) risk = 'warning';
+      if (eName.includes('stopinstances') || eName.includes('terminateinstances')) risk = 'alert';
+      if (eName.includes('disablekey') || eName.includes('schedulekey')) risk = 'alert';
+
+      return {
+        eventTime: e.EventTime?.toISOString() || '',
+        eventName: e.EventName || '',
+        eventSource: e.EventSource || '',
+        username: e.Username || '',
+        sourceIP,
+        userAgent: userAgent.substring(0, 80),
+        resources: (e.Resources || []).map(r => ({ type: r.ResourceType, name: r.ResourceName })),
+        errorCode,
+        errorMessage: errorMsg.substring(0, 200),
+        risk,
+        userType: (userIdentity.type as string) || '',
+        readOnly: (detail.readOnly as boolean) ?? true,
+        region: (detail.awsRegion as string) || region,
+      };
+    });
+
+    // Summary stats
+    const totalEvents = events.length;
+    const alerts = events.filter(e => e.risk === 'alert').length;
+    const warnings = events.filter(e => e.risk === 'warning').length;
+    const errors = events.filter(e => e.errorCode).length;
+    const uniqueUsers = [...new Set(events.map(e => e.username))].length;
+    const uniqueIPs = [...new Set(events.map(e => e.sourceIP).filter(Boolean))].length;
+
+    return jsonResponse(200, {
+      events,
+      summary: { totalEvents, alerts, warnings, errors, uniqueUsers, uniqueIPs },
+      query: { accountId, region, startTime: startTime.toISOString(), endTime: endTime.toISOString() },
+    });
+  } catch (err) {
+    return jsonResponse(500, { message: `CloudTrail query failed: ${err instanceof Error ? err.message : err}` });
+  }
+}
+
 // --- Router ---
 
 function resolveRoute(event: APIGatewayProxyEvent): string {
@@ -1526,6 +1655,7 @@ function resolveRoute(event: APIGatewayProxyEvent): string {
   if (method === 'GET' && resource === '/scans/{id}/status') return 'GET_STATUS';
   if (method === 'GET' && resource === '/scans/{id}/results') return 'GET_RESULTS';
   if (method === 'GET' && resource === '/scans') return 'LIST_HISTORY';
+  if (method === 'POST' && resource === '/investigate') return 'INVESTIGATE';
 
   return 'UNKNOWN';
 }
@@ -1559,6 +1689,8 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
         return await getScanResults(event);
       case 'LIST_HISTORY':
         return await listScanHistory(event);
+      case 'INVESTIGATE':
+        return await investigateCloudTrail(event);
       default:
         return jsonResponse(404, { message: 'Not found' });
     }

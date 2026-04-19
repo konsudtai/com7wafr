@@ -502,13 +502,29 @@ sequenceDiagram
 - Table of Contents, control compliance status, sign-off section
 
 ### Cost Optimization
-- Reserved Instance recommendations
-- Savings Plan recommendations
+- Reserved Instance recommendations with purchase steps
+- Savings Plan recommendations with purchase steps
+- Compute Optimizer rightsizing (EC2, RDS, Lambda, EBS, ASG, ECS, Idle, License)
 - Cost Optimization Hub integration
-- Right-sizing recommendations (Compute Optimizer)
-- Idle resource detection
-- Storage optimization suggestions
+- Per-service optimization tips
+- RI vs SP comparison guide
+- Custom RI/SP calculator
 - Prioritized action plan with estimated savings
+
+### AI Agent (WA Agent)
+- Chat-based AI assistant powered by Amazon Bedrock
+- Model selection: Claude Sonnet 4.6, Claude Opus 4.6, Amazon Nova Lite 2.0
+- Read tools: query findings, compliance, cost data, CloudTrail events, accounts
+- Write tools: propose fix actions (S3 encryption, public access block, VPC flow logs, KMS rotation, CloudTrail config)
+- Human-in-the-loop: all fix actions require explicit approval before execution
+- Risk-level indicators (LOW/MEDIUM/HIGH) on proposed actions
+- Thai and English language support
+
+### Investigation
+- CloudTrail event investigation via LookupEvents API
+- Filter by account, region, time range, username, event name
+- Auto-flag suspicious events (root activity, failed logins, IAM changes, security group changes)
+- Summary stats: total events, alerts, warnings, errors, unique users/IPs
 
 ### Dashboard
 - Real-time scan with progress bar
@@ -548,12 +564,14 @@ sequenceDiagram
 | Overview | Radar chart (pillar scores), severity KPIs, service x pillar heatmap, compliance summary, account cards | All |
 | Findings | Filterable table (5 filters + search), detail drawer with resource, description, recommendation | All |
 | Compliance | 7 frameworks (WAFS, CIS, NIST, SOC2, FTR, SPIP, SSB), click to expand Category → Rule ID detail (Service Screener style) | All |
+| Investigate | CloudTrail event investigation — query by account, region, time range, username, event name. Auto-flags suspicious activity | Admin |
 | History | Scan history table with status | All |
 | Accounts | Account CRUD, 4-step wizard (Account Info → CloudShell Script → ARN → Verify & Save) | Admin: write, Viewer: read |
 | Scan | Select accounts/regions/services with AWS icons, real-time progress bar | Admin only |
 | Team | Add/remove members, change roles, self-deletion protection | Admin only |
 | Report | Full preview with TOC, pillar analysis, all findings + remediation, compliance detail, cost overview. Thai/English toggle. PDF export | All |
 | CloudFinOps | Actual spend, RI/SP recommendations with purchase steps, Compute Optimizer rightsizing (EC2/RDS/Lambda/EBS/ASG/ECS/Idle/License), per-service tips, RI vs SP guide, custom calculator | All |
+| WA Agent | AI chat assistant (Claude Sonnet 4.6 / Opus 4.6 / Nova Lite 2.0) — ask questions, analyze findings, propose fixes with approval flow | All (execute: Admin) |
 
 ---
 
@@ -952,9 +970,10 @@ pytest -k "roundtrip or invariant or correctness"
 ├── backend/                 # Lambda handlers (TypeScript)
 │   ├── auth/auth-module.ts  # Role extraction, authorization
 │   ├── handlers/
-│   │   ├── scan-handler.ts
+│   │   ├── scan-handler.ts  # Scan + Investigate endpoints
 │   │   ├── account-handler.ts
-│   │   └── team-handler.ts
+│   │   ├── team-handler.ts
+│   │   └── ai-handler.ts   # WA Agent (Bedrock AI chat + fix execution)
 │   ├── package.json
 │   └── tsconfig.json
 │

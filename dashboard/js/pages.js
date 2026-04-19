@@ -188,6 +188,74 @@ window.PAGES = (() => {
     `;
   }
 
+  // ==================== INVESTIGATE (CloudTrail) ====================
+  function investigate() {
+    const accts = D.accounts.length ? D.accounts : [{id:'',alias:'No accounts'}];
+    const defaultRegion = (window.WA_CONFIG && window.WA_CONFIG.REGION) || 'ap-southeast-1';
+    const regions = ['ap-southeast-1','us-east-1','us-west-2','eu-west-1','ap-northeast-1','eu-central-1'];
+
+    return `
+      ${ph({ eyebrow:'Monitor · Investigate', title:`CloudTrail <em>forensics.</em>`, sub:'Query CloudTrail events for security investigation and audit' })}
+      <div class="grid grid-2 mb-24" style="grid-template-columns:1fr 2fr;">
+        <div class="card">
+          <h3 class="mb-16">Query</h3>
+          <div style="margin-bottom:12px;">
+            <label class="t3" style="font-size:11px; display:block; margin-bottom:4px;">Account</label>
+            <select id="inv-acct" style="width:100%; padding:8px 12px; border:1px solid var(--line-2); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font-size:13px;">
+              ${accts.map(a => '<option value="' + a.id + '">' + (a.alias||a.id) + ' (' + a.id + ')</option>').join('')}
+            </select>
+          </div>
+          <div style="margin-bottom:12px;">
+            <label class="t3" style="font-size:11px; display:block; margin-bottom:4px;">Region</label>
+            <select id="inv-region" style="width:100%; padding:8px 12px; border:1px solid var(--line-2); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font-size:13px;">
+              ${regions.map(r => '<option value="' + r + '"' + (r===defaultRegion?' selected':'') + '>' + r + '</option>').join('')}
+            </select>
+          </div>
+          <div style="margin-bottom:12px;">
+            <label class="t3" style="font-size:11px; display:block; margin-bottom:4px;">Time Range</label>
+            <select id="inv-time" style="width:100%; padding:8px 12px; border:1px solid var(--line-2); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font-size:13px;">
+              <option value="1">Last 1 hour</option>
+              <option value="6">Last 6 hours</option>
+              <option value="24" selected>Last 24 hours</option>
+              <option value="72">Last 3 days</option>
+              <option value="168">Last 7 days</option>
+              <option value="720">Last 30 days</option>
+            </select>
+          </div>
+          <div style="margin-bottom:12px;">
+            <label class="t3" style="font-size:11px; display:block; margin-bottom:4px;">Username (optional)</label>
+            <input type="text" id="inv-user" placeholder="e.g. admin, root" style="width:100%; padding:8px 12px; border:1px solid var(--line-2); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font-size:13px;">
+          </div>
+          <div style="margin-bottom:12px;">
+            <label class="t3" style="font-size:11px; display:block; margin-bottom:4px;">Event Name (optional)</label>
+            <input type="text" id="inv-event" placeholder="e.g. ConsoleLogin, RunInstances" style="width:100%; padding:8px 12px; border:1px solid var(--line-2); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font-size:13px;">
+          </div>
+          <div style="margin-bottom:16px;">
+            <label class="t3" style="font-size:11px; display:block; margin-bottom:4px;">Max Results</label>
+            <select id="inv-max" style="width:100%; padding:8px 12px; border:1px solid var(--line-2); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font-size:13px;">
+              <option value="25">25</option><option value="50" selected>50</option><option value="100">100</option><option value="200">200</option>
+            </select>
+          </div>
+          <button class="btn btn--accent" id="btn-investigate" style="width:100%;">Search Events</button>
+          <div class="t3 mt-16" style="font-size:11px; line-height:1.6;">
+            Suspicious events are auto-flagged:<br>
+            <span style="color:var(--s-crit);">Alert</span> — Root activity, failed logins, terminate/delete<br>
+            <span style="color:var(--s-med);">Warning</span> — IAM changes, SG changes, access denied
+          </div>
+        </div>
+        <div>
+          <div id="inv-summary" style="display:none;" class="mb-16"></div>
+          <div class="card card--flush" id="inv-results">
+            <div style="padding:40px; text-align:center; color:var(--text-3);">
+              <p>Select an account and click "Search Events" to query CloudTrail.</p>
+              <p class="t3 mt-8" style="font-size:12px;">CloudTrail stores management events for the last 90 days.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   // ==================== ACCOUNTS (with real CRUD) ====================
   function accounts() {
     const platformId = (window.WA_CONFIG && window.WA_CONFIG.PLATFORM_ACCOUNT_ID) || '';
@@ -747,5 +815,5 @@ window.PAGES = (() => {
     `;
   }
 
-  return { overview, findings, compliance, history, accounts, scan, team, report, cost };
+  return { overview, findings, compliance, investigate, history, accounts, scan, team, report, cost };
 })();
