@@ -434,7 +434,7 @@ window.PAGES = (() => {
             <div><span data-t="date">${T.en.date}</span>: <strong class="rpt-date-en">${todayEN}</strong><strong class="rpt-date-th" style="display:none">${todayTH}</strong></div>
             <div><span data-t="region">${T.en.region}</span>: <strong>ap-southeast-1</strong></div>
             <div><span data-t="services">${T.en.services}</span>: <strong>${D.services.length}</strong></div>
-            <div><span data-t="findings">${T.en.findings}</span>: <strong>${D.findings.length}</strong></div>
+            <div><span data-t="findings">${T.en.findings}</span>: <strong>${ff.length}</strong></div>
           </div>
         </div>
 
@@ -445,7 +445,7 @@ window.PAGES = (() => {
             <div class="flex between" style="padding:6px 0; border-bottom:1px dotted var(--line-2);"><span>1. <span data-t="s1">${T.en.s1}</span></span><span class="t3">${avgScore}/100</span></div>
             <div class="flex between" style="padding:6px 0; border-bottom:1px dotted var(--line-2);"><span>2. <span data-t="s2">${T.en.s2}</span></span><span class="t3">5 Pillars</span></div>
             <div class="flex between" style="padding:6px 0; border-bottom:1px dotted var(--line-2);"><span>3. <span data-t="s3">${T.en.s3}</span></span><span class="t3">${topRecs.length} items</span></div>
-            <div class="flex between" style="padding:6px 0; border-bottom:1px dotted var(--line-2);"><span>4. <span data-t="s4">${T.en.s4}</span></span><span class="t3">${D.findings.length} findings</span></div>
+            <div class="flex between" style="padding:6px 0; border-bottom:1px dotted var(--line-2);"><span>4. <span data-t="s4">${T.en.s4}</span></span><span class="t3">${ff.length} findings</span></div>
             <div class="flex between" style="padding:6px 0; border-bottom:1px dotted var(--line-2);"><span>5. <span data-t="s5">${T.en.s5}</span></span><span class="t3">${D.frameworks.length} frameworks</span></div>
             ${totalSpend > 0 ? '<div class="flex between" style="padding:6px 0; border-bottom:1px dotted var(--line-2);"><span>6. <span data-t="s6">' + T.en.s6 + '</span></span><span class="t3">$' + money(totalSpend) + '/mo</span></div>' : ''}
           </div>
@@ -456,12 +456,12 @@ window.PAGES = (() => {
           <div class="t3" style="font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--ac-500); margin-bottom:8px;">Section 1</div>
           <h2 style="font-family:var(--font-display); font-size:22px; margin-bottom:16px;" data-t="s1">${T.en.s1}</h2>
           <p class="t2 rpt-s1-desc" style="margin-bottom:20px; line-height:1.7; font-size:14px;">${T.en.s1desc.replace('{accts}',D.accounts.length).replace('{svcs}',D.services.length)}</p>
-          <p class="t2" style="margin-bottom:20px; line-height:1.7; font-size:14px;"><span data-t="scoreIs">${T.en.scoreIs}</span> <strong>${avgScore}/100</strong>. ${D.findings.length} <span data-t="findingsFound">${T.en.findingsFound}</span> <strong style="color:var(--s-crit)">${critCount} Critical</strong>, <strong style="color:var(--s-high)">${highCount} High</strong>, <strong style="color:var(--s-med)">${medCount} Medium</strong>, <strong style="color:var(--s-low)">${lowCount} Low</strong>. ${critCount > 0 ? '<span data-t="critImmediate">' + T.en.critImmediate + '</span>' : '<span data-t="noCrit">' + T.en.noCrit + '</span>'}</p>
+          <p class="t2" style="margin-bottom:20px; line-height:1.7; font-size:14px;"><span data-t="scoreIs">${T.en.scoreIs}</span> <strong>${avgScore}/100</strong>. ${ff.length} <span data-t="findingsFound">${T.en.findingsFound}</span> <strong style="color:var(--s-crit)">${critCount} Critical</strong>, <strong style="color:var(--s-high)">${highCount} High</strong>, <strong style="color:var(--s-med)">${medCount} Medium</strong>, <strong style="color:var(--s-low)">${lowCount} Low</strong>. ${critCount > 0 ? '<span data-t="critImmediate">' + T.en.critImmediate + '</span>' : '<span data-t="noCrit">' + T.en.noCrit + '</span>'}</p>
           <div class="grid grid-4" style="gap:12px;">
             <div style="padding:16px; background:var(--surface); border-radius:var(--r-sm); text-align:center;"><div class="t3" style="font-size:11px;" data-t="score">${T.en.score}</div><div style="font-family:var(--font-display); font-size:36px;">${avgScore}</div></div>
             <div style="padding:16px; background:var(--surface); border-radius:var(--r-sm); text-align:center;"><div class="t3" style="font-size:11px;" data-t="critical">${T.en.critical}</div><div style="font-family:var(--font-display); font-size:36px; color:var(--s-crit);">${critCount}</div></div>
             <div style="padding:16px; background:var(--surface); border-radius:var(--r-sm); text-align:center;"><div class="t3" style="font-size:11px;" data-t="high">${T.en.high}</div><div style="font-family:var(--font-display); font-size:36px; color:var(--s-high);">${highCount}</div></div>
-            <div style="padding:16px; background:var(--surface); border-radius:var(--r-sm); text-align:center;"><div class="t3" style="font-size:11px;" data-t="findings">${T.en.findings}</div><div style="font-family:var(--font-display); font-size:36px;">${D.findings.length}</div></div>
+            <div style="padding:16px; background:var(--surface); border-radius:var(--r-sm); text-align:center;"><div class="t3" style="font-size:11px;" data-t="findings">${T.en.findings}</div><div style="font-family:var(--font-display); font-size:36px;">${ff.length}</div></div>
           </div>
         </div>
 
@@ -470,7 +470,7 @@ window.PAGES = (() => {
           <div class="t3" style="font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--ac-500); margin-bottom:8px;">Section 2</div>
           <h2 style="font-family:var(--font-display); font-size:22px; margin-bottom:20px;" data-t="s2">${T.en.s2}</h2>
           ${D.pillars.map(p => {
-            const topF = D.findings.filter(f=>f.pillar===p.name&&(f.severity==='CRITICAL'||f.severity==='HIGH')).slice(0,3);
+            const topF = ff.filter(f=>f.pillar===p.name&&(f.severity==='CRITICAL'||f.severity==='HIGH')).slice(0,3);
             return `<div style="margin-bottom:24px; padding:20px; background:var(--surface); border-radius:var(--r-md);">
               <div class="flex between center mb-8"><h3 style="font-size:16px;">${p.name}</h3><span style="font-family:var(--font-display); font-size:28px; color:${p.score>=75?'var(--s-low)':p.score>=60?'var(--s-med)':'var(--s-crit)'};">${p.score}</span></div>
               <div class="pillar__bar mb-8"><span style="width:${p.score}%;background:${p.score>=75?'var(--s-low)':p.score>=60?'var(--s-med)':'var(--s-crit)'}"></span></div>
