@@ -1,83 +1,5 @@
 /* ================ APP ================ */
-window.App = {};
 (() => {
-  // Auth state
-  const state = { isAuthenticated: false, user: null, role: null };
-
-  // Login page renderer
-  function loginPage() {
-    return `
-      <div style="display:flex; align-items:center; justify-content:center; min-height:80vh;">
-        <div style="background:var(--surface-2); border-radius:var(--r-xl); padding:40px; width:100%; max-width:400px; box-shadow:var(--shadow-2); text-align:center;">
-          <div style="color:var(--ac-500); margin-bottom:16px;">
-            <svg viewBox="0 0 24 24" width="32" height="32"><path d="M3 12 L12 3 L21 12 L12 21 Z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 12 L12 7 L17 12 L12 17 Z" fill="currentColor"/></svg>
-          </div>
-          <h2 style="font-family:var(--font-display); margin-bottom:4px;">WA Review</h2>
-          <p class="t2" style="margin-bottom:24px; font-size:14px;">Well-Architected Intelligence</p>
-          <form id="login-form" autocomplete="on">
-            <div style="margin-bottom:12px; text-align:left;">
-              <label style="font-size:12px; color:var(--text-3); display:block; margin-bottom:4px;">Email</label>
-              <input type="email" id="login-email" placeholder="email@example.com" required autocomplete="username" style="width:100%; padding:8px 12px; border:1px solid var(--line-2); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font-size:14px;">
-            </div>
-            <div style="margin-bottom:12px; text-align:left;">
-              <label style="font-size:12px; color:var(--text-3); display:block; margin-bottom:4px;">Password</label>
-              <div style="position:relative;">
-                <input type="password" id="login-password" placeholder="Password" required autocomplete="current-password" style="width:100%; padding:8px 12px; border:1px solid var(--line-2); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font-size:14px; padding-right:44px;">
-                <button type="button" id="toggle-pw" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:var(--text-3); font-size:12px;">Show</button>
-              </div>
-            </div>
-            <div id="login-error" style="display:none; padding:8px; border-radius:var(--r-sm); background:color-mix(in oklab, var(--s-crit) 12%, transparent); color:var(--s-crit); font-size:13px; margin-bottom:12px;"></div>
-            <button type="submit" id="login-submit" class="btn btn--accent" style="width:100%; height:38px; justify-content:center;">Sign in</button>
-          </form>
-          <div id="change-pw-form" style="display:none;">
-            <p class="t2" style="margin-bottom:12px; font-size:13px;">Set a new password for first login</p>
-            <input type="password" id="new-pw" placeholder="New password" style="width:100%; padding:8px 12px; border:1px solid var(--line-2); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font-size:14px; margin-bottom:8px;">
-            <input type="password" id="confirm-pw" placeholder="Confirm password" style="width:100%; padding:8px 12px; border:1px solid var(--line-2); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font-size:14px; margin-bottom:12px;">
-            <div id="pw-error" style="display:none; padding:8px; border-radius:var(--r-sm); background:color-mix(in oklab, var(--s-crit) 12%, transparent); color:var(--s-crit); font-size:13px; margin-bottom:12px;"></div>
-            <button id="pw-submit" class="btn btn--accent" style="width:100%; height:38px; justify-content:center;">Change password</button>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  function wireLogin() {
-    document.getElementById('login-form')?.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const email = document.getElementById('login-email').value.trim();
-      const pw = document.getElementById('login-password').value;
-      const errEl = document.getElementById('login-error');
-      const btn = document.getElementById('login-submit');
-      if (!email || !pw) return;
-      btn.disabled = true; btn.textContent = 'Signing in...';
-      errEl.style.display = 'none';
-      try {
-        const result = await Auth.login(email, pw);
-        if (result.newPasswordRequired) {
-          document.getElementById('login-form').style.display = 'none';
-          document.getElementById('change-pw-form').style.display = 'block';
-        }
-      } catch (err) {
-        errEl.textContent = err.message || 'Login failed';
-        errEl.style.display = 'block';
-      } finally { btn.disabled = false; btn.textContent = 'Sign in'; }
-    });
-    document.getElementById('toggle-pw')?.addEventListener('click', () => {
-      const inp = document.getElementById('login-password');
-      const btn = document.getElementById('toggle-pw');
-      if (inp.type === 'password') { inp.type = 'text'; btn.textContent = 'Hide'; }
-      else { inp.type = 'password'; btn.textContent = 'Show'; }
-    });
-    document.getElementById('pw-submit')?.addEventListener('click', async () => {
-      const pw = document.getElementById('new-pw').value;
-      const cpw = document.getElementById('confirm-pw').value;
-      const errEl = document.getElementById('pw-error');
-      if (pw !== cpw) { errEl.textContent = 'Passwords do not match'; errEl.style.display = 'block'; return; }
-      if (pw.length < 8) { errEl.textContent = 'Min 8 characters'; errEl.style.display = 'block'; return; }
-      try { await Auth.completeNewPassword(pw); } catch (err) { errEl.textContent = err.message; errEl.style.display = 'block'; }
-    });
-  }
-
   const routes = {
     overview:  { group:'monitor', label:'Overview',    render: PAGES.overview,  subtabs:[['overview','Overview'],['findings','Findings'],['compliance','Compliance'],['history','History']] },
     findings:  { group:'monitor', label:'Findings',    render: PAGES.findings,  subtabs:[['overview','Overview'],['findings','Findings'],['compliance','Compliance'],['history','History']] },
@@ -121,42 +43,18 @@ window.App = {};
     location.hash = '#' + key;
   }
 
-  async function render() {
+  function render() {
     const key = routeFromHash();
-
-    // Auth guard
-    if (!state.isAuthenticated) {
-      document.getElementById('topnav').style.display = 'none';
-      document.querySelector('.foot').style.display = 'none';
-      document.getElementById('main').innerHTML = loginPage();
-      wireLogin();
-      return;
-    }
-
-    document.getElementById('topnav').style.display = '';
-    document.querySelector('.foot').style.display = '';
-
-    // Load data if not loaded
-    if (!DATA.loaded) {
-      document.getElementById('main').innerHTML = '<div class="empty"><h3>Loading data...</h3><p>Fetching scan results from API</p></div>';
-      await DATA.load();
-    }
-
     const r = routes[key];
     document.getElementById('main').innerHTML = r.render();
     renderSubbar(key);
+    // highlight nav group
     document.querySelectorAll('.nav__item').forEach(n => n.classList.toggle('active-group', n.dataset.group === r.group));
+    // close any open menus
     document.querySelectorAll('.nav__item.open').forEach(n => n.classList.remove('open'));
     window.scrollTo({top:0, behavior:'instant'});
+    // attach page-specific handlers
     wireFindings();
-
-    // Update avatar
-    const avatar = document.querySelector('.avatar');
-    if (avatar && state.user) {
-      const initials = state.user.split('@')[0].slice(0,2).toUpperCase();
-      avatar.textContent = initials;
-      avatar.title = state.user;
-    }
   }
 
   // Findings row click → drawer
@@ -303,33 +201,6 @@ window.App = {};
   wirePalette();
   wireTheme();
   wireTweaks();
-
-  // Auth integration
-  App.state = state;
-  App.setAuthenticated = function(user, role) {
-    state.isAuthenticated = true;
-    state.user = user;
-    state.role = role || 'Viewer';
-    DATA.loaded = false; // force reload
-    render();
-  };
-  App.setUnauthenticated = function() {
-    state.isAuthenticated = false;
-    state.user = null;
-    state.role = null;
-    render();
-  };
-  App.renderPage = render;
-  App.navigate = go;
-  App.showModal = function() {}; // compatibility stub
-  App.hideModal = function() {};
-
-  // Check auth on load
-  if (typeof Auth !== 'undefined' && Auth.checkSession) {
-    Auth.checkSession();
-  } else {
-    render();
-  }
-
+  render();
   window.addEventListener('hashchange', render);
 })();
