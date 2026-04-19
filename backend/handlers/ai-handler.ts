@@ -25,9 +25,9 @@ const stsClient = new STSClient({});
 
 // --- Model IDs ---
 const MODELS: Record<string, string> = {
-  'sonnet-4.6': 'anthropic.claude-sonnet-4-6',
-  'opus-4.6': 'anthropic.claude-opus-4-6-v1',
-  'nova-lite': 'amazon.nova-lite-v1:0',
+  'sonnet-4.6': 'us.anthropic.claude-sonnet-4-6-20250514-v1:0',
+  'opus-4.6': 'us.anthropic.claude-opus-4-6-20250514-v1:0',
+  'nova-lite': 'us.amazon.nova-lite-v1:0',
 };
 const DEFAULT_MODEL = 'sonnet-4.6';
 
