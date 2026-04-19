@@ -219,8 +219,34 @@ async function updateScanStatus(
   );
 
   // Also update the history record status
-  // We need to find the history SK first — but for simplicity we skip this
-  // since the metadata record is the source of truth for status.
+  try {
+    const histResult = await docClient.send(
+      new QueryCommand({
+        TableName: TABLE_NAME,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+        FilterExpression: 'scanId = :sid',
+        ExpressionAttributeValues: {
+          ':pk': 'HISTORY',
+          ':sk': 'SCAN#',
+          ':sid': scanId,
+        },
+      }),
+    );
+    const histItem = histResult.Items?.[0];
+    if (histItem) {
+      await docClient.send(
+        new UpdateCommand({
+          TableName: TABLE_NAME,
+          Key: { PK: histItem.PK as string, SK: histItem.SK as string },
+          UpdateExpression: 'SET #status = :status',
+          ExpressionAttributeNames: { '#status': 'status' },
+          ExpressionAttributeValues: { ':status': status },
+        }),
+      );
+    }
+  } catch (histErr) {
+    console.error('Failed to update history record status:', histErr);
+  }
 }
 
 
@@ -423,6 +449,14 @@ async function runScanAsync(
       if (credentials) {
         const costFindings = await scanCostRecommendations(acct.accountId, credentials);
         findings.push(...costFindings);
+
+        // Compute Optimizer — rightsizing recommendations
+        try {
+          const coFindings = await scanComputeOptimizer(acct.accountId, credentials);
+          findings.push(...coFindings);
+        } catch (coErr) {
+          errors.push(`Compute Optimizer error for ${acct.accountId}: ${coErr instanceof Error ? coErr.message : coErr}`);
+        }
       }
     } catch (err) {
       errors.push(`Cost Explorer error for ${acct.accountId}: ${err instanceof Error ? err.message : err}`);
@@ -1038,6 +1072,330 @@ async function scanCostRecommendations(
     } catch (err) { console.error('SP recommendations error:', err); }
 
   } catch (err) { console.error('Cost Explorer client error:', err); }
+  return findings;
+}
+
+/**
+ * Scan Compute Optimizer for EC2, Lambda, and EBS rightsizing recommendations.
+ * Compute Optimizer must be opted-in for the account.
+ */
+async function scanComputeOptimizer(
+  accountId: string,
+  credentials: { accessKeyId: string; secretAccessKey: string; sessionToken: string },
+): Promise<Record<string, unknown>[]> {
+  const findings: Record<string, unknown>[] = [];
+  const coCfg = {
+    region: 'ap-southeast-1',
+    credentials: {
+      accessKeyId: credentials.accessKeyId,
+      secretAccessKey: credentials.secretAccessKey,
+      sessionToken: credentials.sessionToken,
+    },
+  };
+
+  try {
+    const {
+      ComputeOptimizerClient,
+      GetEC2InstanceRecommendationsCommand,
+      GetLambdaFunctionRecommendationsCommand,
+      GetEBSVolumeRecommendationsCommand,
+      GetRDSDatabaseRecommendationsCommand,
+      GetAutoScalingGroupRecommendationsCommand,
+      GetECSServiceRecommendationsCommand,
+      GetIdleRecommendationsCommand,
+      GetLicenseRecommendationsCommand,
+    } = await import('@aws-sdk/client-compute-optimizer');
+    const co = new ComputeOptimizerClient(coCfg);
+
+    // --- EC2 Rightsizing ---
+    try {
+      const ec2Recs = await co.send(new GetEC2InstanceRecommendationsCommand({ maxResults: 50 }));
+      for (const rec of ec2Recs.instanceRecommendations ?? []) {
+        if (rec.finding === 'Optimized' || String(rec.finding) === 'OPTIMIZED') continue;
+        const current = rec.currentInstanceType || 'Unknown';
+        const topOption = rec.recommendationOptions?.[0];
+        const recommended = topOption?.instanceType || 'N/A';
+        const savings = topOption?.savingsOpportunity?.estimatedMonthlySavings?.value || 0;
+        const savingsPct = topOption?.savingsOpportunity?.savingsOpportunityPercentage || 0;
+        const effort = topOption?.migrationEffort || 'Medium';
+        const perfRisk = topOption?.performanceRisk || 0;
+        const finding = rec.finding || 'OVER_PROVISIONED';
+        const name = rec.instanceName || rec.instanceArn?.split('/').pop() || '';
+        const idle = rec.idle === 'True';
+
+        findings.push({
+          finding_id: randomUUID(), account_id: accountId,
+          region: rec.instanceArn?.split(':')[3] || 'ap-southeast-1',
+          service: 'EC2', resource_id: name || current,
+          resource_arn: rec.instanceArn || '',
+          pillar: 'Cost Optimization',
+          severity: idle ? 'HIGH' : savings > 50 ? 'HIGH' : savings > 10 ? 'MEDIUM' : 'LOW',
+          title: idle ? `EC2 ${name || current} is idle — consider terminating` : `EC2 ${name}: ${current} → ${recommended} (save $${savings.toFixed(0)}/mo)`,
+          description: idle
+            ? `Instance ${name || current} (${current}) appears idle. Estimated waste: $${savings.toFixed(0)}/mo.`
+            : `Current: ${current}. Recommended: ${recommended}. Estimated savings: $${savings.toFixed(0)}/mo (${savingsPct.toFixed(0)}%). Migration effort: ${effort}. Performance risk: ${perfRisk}/5.`,
+          recommendation: idle
+            ? `Terminate or stop this idle instance to save $${savings.toFixed(0)}/mo. If needed intermittently, consider using Auto Scaling or Spot instances.`
+            : `Resize from ${current} to ${recommended}. Steps: 1) Stop instance, 2) Change instance type to ${recommended}, 3) Start instance. Saves ~$${savings.toFixed(0)}/mo.`,
+          finding_type: 'RIGHTSIZING',
+          currentType: current, recommendedType: recommended,
+          monthlySavings: savings, savingsPercentage: savingsPct,
+          migrationEffort: effort, performanceRisk: perfRisk,
+          isIdle: idle, optimizerFinding: finding,
+        });
+      }
+    } catch (err) { console.log('Compute Optimizer EC2 error:', err instanceof Error ? err.message : err); }
+
+    // --- Lambda Rightsizing ---
+    try {
+      const lambdaRecs = await co.send(new GetLambdaFunctionRecommendationsCommand({ maxResults: 50 }));
+      for (const rec of lambdaRecs.lambdaFunctionRecommendations ?? []) {
+        if (rec.finding === 'Optimized') continue;
+        const fnName = rec.functionArn?.split(':').pop() || 'Unknown';
+        const currentMem = rec.currentMemorySize || 0;
+        const topOption = rec.memorySizeRecommendationOptions?.[0];
+        const recMem = topOption?.memorySize || 0;
+        const savings = topOption?.savingsOpportunity?.estimatedMonthlySavings?.value || 0;
+        const savingsPct = topOption?.savingsOpportunity?.savingsOpportunityPercentage || 0;
+
+        if (savings <= 0 && rec.finding !== 'NotOptimized') continue;
+
+        findings.push({
+          finding_id: randomUUID(), account_id: accountId,
+          region: rec.functionArn?.split(':')[3] || 'ap-southeast-1',
+          service: 'Lambda', resource_id: fnName,
+          resource_arn: rec.functionArn || '',
+          pillar: 'Cost Optimization',
+          severity: savings > 20 ? 'MEDIUM' : 'LOW',
+          title: `Lambda ${fnName}: ${currentMem}MB → ${recMem}MB (save $${savings.toFixed(0)}/mo)`,
+          description: `Current memory: ${currentMem}MB. Recommended: ${recMem}MB. Savings: $${savings.toFixed(0)}/mo (${savingsPct.toFixed(0)}%).`,
+          recommendation: `Update Lambda function memory from ${currentMem}MB to ${recMem}MB. Use AWS Lambda Power Tuning to validate optimal memory setting.`,
+          finding_type: 'RIGHTSIZING',
+          currentType: `${currentMem}MB`, recommendedType: `${recMem}MB`,
+          monthlySavings: savings, savingsPercentage: savingsPct,
+          migrationEffort: 'Low', optimizerFinding: rec.finding,
+        });
+      }
+    } catch (err) { console.log('Compute Optimizer Lambda error:', err instanceof Error ? err.message : err); }
+
+    // --- EBS Volume Rightsizing ---
+    try {
+      const ebsRecs = await co.send(new GetEBSVolumeRecommendationsCommand({ maxResults: 50 }));
+      for (const rec of ebsRecs.volumeRecommendations ?? []) {
+        if (rec.finding === 'Optimized') continue;
+        const volId = rec.volumeArn?.split('/').pop() || 'Unknown';
+        const currentType = rec.currentConfiguration?.volumeType || '';
+        const currentSize = rec.currentConfiguration?.volumeSize || 0;
+        const topOption = rec.volumeRecommendationOptions?.[0];
+        const recType = topOption?.configuration?.volumeType || '';
+        const recSize = topOption?.configuration?.volumeSize || 0;
+        const savings = topOption?.savingsOpportunity?.estimatedMonthlySavings?.value || 0;
+        const savingsPct = topOption?.savingsOpportunity?.savingsOpportunityPercentage || 0;
+
+        if (savings <= 0) continue;
+
+        findings.push({
+          finding_id: randomUUID(), account_id: accountId,
+          region: rec.volumeArn?.split(':')[3] || 'ap-southeast-1',
+          service: 'EBS', resource_id: volId,
+          resource_arn: rec.volumeArn || '',
+          pillar: 'Cost Optimization',
+          severity: savings > 20 ? 'MEDIUM' : 'LOW',
+          title: `EBS ${volId}: ${currentType} ${currentSize}GB → ${recType} ${recSize}GB (save $${savings.toFixed(0)}/mo)`,
+          description: `Current: ${currentType} ${currentSize}GB. Recommended: ${recType} ${recSize}GB. Savings: $${savings.toFixed(0)}/mo (${savingsPct.toFixed(0)}%).`,
+          recommendation: `Modify EBS volume from ${currentType} to ${recType} (${recSize}GB). For gp2→gp3 migration: no downtime required, use ModifyVolume API.`,
+          finding_type: 'RIGHTSIZING',
+          currentType: `${currentType} ${currentSize}GB`, recommendedType: `${recType} ${recSize}GB`,
+          monthlySavings: savings, savingsPercentage: savingsPct,
+          migrationEffort: 'Low', optimizerFinding: rec.finding,
+        });
+      }
+    } catch (err) { console.log('Compute Optimizer EBS error:', err instanceof Error ? err.message : err); }
+
+    // --- RDS Rightsizing ---
+    try {
+      const rdsRecs = await co.send(new GetRDSDatabaseRecommendationsCommand({ maxResults: 50 }));
+      for (const rec of rdsRecs.rdsDBRecommendations ?? []) {
+        if (String(rec.instanceFinding) === 'Optimized') continue;
+        const dbId = rec.resourceArn?.split(':').pop() || 'Unknown';
+        const currentClass = rec.currentDBInstanceClass || '';
+        const currentEngine = rec.engine || '';
+        const currentStorage = rec.currentStorageConfiguration;
+        const topOption = rec.instanceRecommendationOptions?.[0];
+        const recClass = topOption?.dbInstanceClass || '';
+        const savings = topOption?.savingsOpportunity?.estimatedMonthlySavings?.value || 0;
+        const savingsPct = topOption?.savingsOpportunity?.savingsOpportunityPercentage || 0;
+        const effort = 'Medium';
+
+        // Storage recommendation
+        const storageOption = rec.storageRecommendationOptions?.[0];
+        const storageSavings = storageOption?.savingsOpportunity?.estimatedMonthlySavings?.value || 0;
+        const totalSav = savings + storageSavings;
+
+        if (totalSav <= 0 && String(rec.instanceFinding) !== 'Overprovisioned') continue;
+
+        const recStorageType = storageOption?.storageConfiguration?.storageType || '';
+        const recStorageSize = storageOption?.storageConfiguration?.allocatedStorage || 0;
+
+        findings.push({
+          finding_id: randomUUID(), account_id: accountId,
+          region: rec.resourceArn?.split(':')[3] || 'ap-southeast-1',
+          service: 'RDS', resource_id: dbId,
+          resource_arn: rec.resourceArn || '',
+          pillar: 'Cost Optimization',
+          severity: totalSav > 50 ? 'HIGH' : totalSav > 10 ? 'MEDIUM' : 'LOW',
+          title: `RDS ${dbId}: ${currentClass} → ${recClass || 'optimize'} (save $${totalSav.toFixed(0)}/mo)`,
+          description: `Engine: ${currentEngine}. Current: ${currentClass}. Recommended: ${recClass || 'review sizing'}. Instance savings: $${savings.toFixed(0)}/mo (${savingsPct.toFixed(0)}%).${storageSavings > 0 ? ` Storage savings: $${storageSavings.toFixed(0)}/mo.` : ''}`,
+          recommendation: recClass
+            ? `Modify RDS instance from ${currentClass} to ${recClass}. Steps: 1) RDS Console → Modify, 2) Change DB instance class to ${recClass}, 3) Apply during maintenance window. ${recStorageType ? `Also consider changing storage to ${recStorageType} ${recStorageSize}GB.` : ''}`
+            : `Review RDS instance sizing. Current class ${currentClass} may be over-provisioned.`,
+          finding_type: 'RIGHTSIZING',
+          currentType: `${currentEngine} ${currentClass}`, recommendedType: recClass || 'Review',
+          monthlySavings: totalSav, savingsPercentage: savingsPct,
+          migrationEffort: effort, optimizerFinding: String(rec.instanceFinding),
+        });
+      }
+    } catch (err) { console.log('Compute Optimizer RDS error:', err instanceof Error ? err.message : err); }
+
+    // --- Auto Scaling Group Rightsizing ---
+    try {
+      const asgRecs = await co.send(new GetAutoScalingGroupRecommendationsCommand({ maxResults: 50 }));
+      for (const rec of asgRecs.autoScalingGroupRecommendations ?? []) {
+        if (String(rec.finding) === 'Optimized') continue;
+        const asgName = rec.autoScalingGroupName || 'Unknown';
+        const currentType = rec.currentConfiguration?.instanceType || '';
+        const topOption = rec.recommendationOptions?.[0];
+        const recType = topOption?.configuration?.instanceType || '';
+        const savings = topOption?.savingsOpportunity?.estimatedMonthlySavings?.value || 0;
+        const savingsPct = topOption?.savingsOpportunity?.savingsOpportunityPercentage || 0;
+        const effort = topOption?.migrationEffort || 'Medium';
+
+        if (savings <= 0) continue;
+
+        findings.push({
+          finding_id: randomUUID(), account_id: accountId,
+          region: rec.autoScalingGroupArn?.split(':')[3] || 'ap-southeast-1',
+          service: 'Auto Scaling', resource_id: asgName,
+          resource_arn: rec.autoScalingGroupArn || '',
+          pillar: 'Cost Optimization',
+          severity: savings > 50 ? 'HIGH' : savings > 10 ? 'MEDIUM' : 'LOW',
+          title: `ASG ${asgName}: ${currentType} → ${recType} (save $${savings.toFixed(0)}/mo)`,
+          description: `Current instance type: ${currentType}. Recommended: ${recType}. Savings: $${savings.toFixed(0)}/mo (${savingsPct.toFixed(0)}%). Effort: ${effort}.`,
+          recommendation: `Update ASG launch template to use ${recType} instead of ${currentType}. Steps: 1) EC2 → Launch Templates → Create new version with ${recType}, 2) ASG → Edit → Update launch template version, 3) Instance refresh to roll out.`,
+          finding_type: 'RIGHTSIZING',
+          currentType, recommendedType: recType,
+          monthlySavings: savings, savingsPercentage: savingsPct,
+          migrationEffort: effort, optimizerFinding: String(rec.finding),
+        });
+      }
+    } catch (err) { console.log('Compute Optimizer ASG error:', err instanceof Error ? err.message : err); }
+
+    // --- ECS Service Rightsizing ---
+    try {
+      const ecsRecs = await co.send(new GetECSServiceRecommendationsCommand({ maxResults: 50 }));
+      for (const rec of ecsRecs.ecsServiceRecommendations ?? []) {
+        if (String(rec.finding) === 'Optimized') continue;
+        const svcName = rec.serviceArn?.split('/').pop() || 'Unknown';
+        const currentCpu = rec.currentServiceConfiguration?.cpu || 0;
+        const currentMem = rec.currentServiceConfiguration?.memory || 0;
+        const topOption = rec.serviceRecommendationOptions?.[0];
+        const recCpu = topOption?.cpu || 0;
+        const recMem = topOption?.memory || 0;
+        const savings = topOption?.savingsOpportunity?.estimatedMonthlySavings?.value || 0;
+        const savingsPct = topOption?.savingsOpportunity?.savingsOpportunityPercentage || 0;
+
+        if (savings <= 0) continue;
+
+        findings.push({
+          finding_id: randomUUID(), account_id: accountId,
+          region: rec.serviceArn?.split(':')[3] || 'ap-southeast-1',
+          service: 'ECS', resource_id: svcName,
+          resource_arn: rec.serviceArn || '',
+          pillar: 'Cost Optimization',
+          severity: savings > 30 ? 'MEDIUM' : 'LOW',
+          title: `ECS ${svcName}: ${currentCpu}CPU/${currentMem}MB → ${recCpu}CPU/${recMem}MB (save $${savings.toFixed(0)}/mo)`,
+          description: `Current: ${currentCpu} CPU / ${currentMem}MB. Recommended: ${recCpu} CPU / ${recMem}MB. Savings: $${savings.toFixed(0)}/mo (${savingsPct.toFixed(0)}%).`,
+          recommendation: `Update ECS task definition CPU/memory. Steps: 1) ECS → Task Definitions → Create new revision, 2) Set CPU=${recCpu}, Memory=${recMem}, 3) Update service to use new revision.`,
+          finding_type: 'RIGHTSIZING',
+          currentType: `${currentCpu}CPU/${currentMem}MB`, recommendedType: `${recCpu}CPU/${recMem}MB`,
+          monthlySavings: savings, savingsPercentage: savingsPct,
+          migrationEffort: 'Low', optimizerFinding: String(rec.finding),
+        });
+      }
+    } catch (err) { console.log('Compute Optimizer ECS error:', err instanceof Error ? err.message : err); }
+
+    // --- Idle Resources (dedicated API) ---
+    try {
+      const idleRecs = await co.send(new GetIdleRecommendationsCommand({ maxResults: 100 }));
+      for (const rec of idleRecs.idleRecommendations ?? []) {
+        const resType = String(rec.resourceType || '').replace('Auto', 'Auto ');
+        const resId = rec.resourceArn?.split(/[:/]/).pop() || 'Unknown';
+        const savings = rec.savingsOpportunity?.estimatedMonthlySavings?.value || 0;
+        const savingsPct = rec.savingsOpportunity?.savingsOpportunityPercentage || 0;
+
+        if (savings <= 0) continue;
+
+        findings.push({
+          finding_id: randomUUID(), account_id: accountId,
+          region: rec.resourceArn?.split(':')[3] || 'ap-southeast-1',
+          service: resType || 'Unknown', resource_id: resId,
+          resource_arn: rec.resourceArn || '',
+          pillar: 'Cost Optimization',
+          severity: savings > 50 ? 'HIGH' : savings > 10 ? 'MEDIUM' : 'LOW',
+          title: `Idle ${resType} ${resId} — save $${savings.toFixed(0)}/mo`,
+          description: `${resType} ${resId} is idle. Estimated waste: $${savings.toFixed(0)}/mo (${savingsPct.toFixed(0)}%).`,
+          recommendation: `Review and terminate or stop this idle ${resType} resource. If needed intermittently, consider scheduling or auto-scaling.`,
+          finding_type: 'RIGHTSIZING',
+          currentType: resType, recommendedType: 'Terminate/Stop',
+          monthlySavings: savings, savingsPercentage: savingsPct,
+          migrationEffort: 'Low', isIdle: true, optimizerFinding: 'Idle',
+        });
+      }
+    } catch (err) { console.log('Compute Optimizer Idle error:', err instanceof Error ? err.message : err); }
+
+    // --- License Recommendations (Windows/SQL Server) ---
+    try {
+      const licRecs = await co.send(new GetLicenseRecommendationsCommand({ maxResults: 50 }));
+      for (const rec of licRecs.licenseRecommendations ?? []) {
+        if (String(rec.finding) === 'Optimized') continue;
+        const resId = rec.resourceArn?.split(/[:/]/).pop() || 'Unknown';
+        const curLic = rec.currentLicenseConfiguration;
+        const curName = curLic?.licenseName || '';
+        const curEdition = curLic?.licenseEdition || '';
+        const curModel = curLic?.licenseModel || '';
+        const curOS = curLic?.operatingSystem || '';
+        const curType = curLic?.instanceType || '';
+        const topOption = rec.licenseRecommendationOptions?.[0];
+        const recEdition = topOption?.licenseEdition || '';
+        const recModel = topOption?.licenseModel || '';
+        const recOS = topOption?.operatingSystem || '';
+        const savings = topOption?.savingsOpportunity?.estimatedMonthlySavings?.value || 0;
+        const savingsPct = topOption?.savingsOpportunity?.savingsOpportunityPercentage || 0;
+        const reasons = (rec.findingReasonCodes || []).map(r => String(r)).join(', ');
+
+        findings.push({
+          finding_id: randomUUID(), account_id: accountId,
+          region: rec.resourceArn?.split(':')[3] || 'ap-southeast-1',
+          service: 'License', resource_id: resId,
+          resource_arn: rec.resourceArn || '',
+          pillar: 'Cost Optimization',
+          severity: savings > 100 ? 'HIGH' : savings > 20 ? 'MEDIUM' : 'LOW',
+          title: savings > 0
+            ? `License ${resId}: ${curEdition || curName} → ${recEdition || recOS} (save $${savings.toFixed(0)}/mo)`
+            : `License review: ${resId} (${curOS} ${curEdition || curName})`,
+          description: `Instance: ${curType}. Current: ${curOS} ${curName} ${curEdition} (${curModel}). Recommended: ${recOS || curOS} ${recEdition || 'review'} (${recModel || curModel}). ${reasons ? 'Reasons: ' + reasons + '.' : ''} Savings: $${savings.toFixed(0)}/mo (${savingsPct.toFixed(0)}%).`,
+          recommendation: savings > 0
+            ? `Switch from ${curEdition || curName} to ${recEdition || 'a lower edition'}. Consider: 1) Migrate to Linux if workload allows (BYOL savings), 2) Downgrade SQL Server edition if features permit, 3) Use AWS License Manager to track and optimize.`
+            : `Review license usage for ${resId}. Current: ${curOS} ${curEdition}. AWS detected optimization opportunity.`,
+          finding_type: 'RIGHTSIZING',
+          currentType: `${curOS} ${curEdition || curName}`, recommendedType: `${recOS || curOS} ${recEdition || 'Review'}`,
+          monthlySavings: savings, savingsPercentage: savingsPct,
+          migrationEffort: 'High', optimizerFinding: String(rec.finding),
+        });
+      }
+    } catch (err) { console.log('Compute Optimizer License error:', err instanceof Error ? err.message : err); }
+
+  } catch (err) { console.error('Compute Optimizer client error:', err); }
   return findings;
 }
 

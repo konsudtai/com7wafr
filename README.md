@@ -29,10 +29,12 @@ The script deploys the entire platform in approximately 10 minutes and outputs t
 > Replace `ap-southeast-1` with your preferred AWS region.
 > Each AWS account gets its own independent platform instance. You can deploy to multiple accounts.
 
-**Destroy (remove all stacks):**
+**Destroy (remove all stacks safely):**
 ```bash
 cd com7wafr && chmod +x deploy.sh && ./deploy.sh --destroy
 ```
+
+> The destroy command removes only the WA Review platform stacks (wa-review-auth, wa-review-data, wa-review-api, wa-review-frontend). It does NOT affect any other workloads, services, or resources in the AWS account. Target accounts' IAM roles (WAReviewReadOnly) are not deleted — remove them manually if no longer needed.
 
 ---
 
@@ -54,7 +56,8 @@ cd com7wafr && chmod +x deploy.sh && ./deploy.sh --destroy
 14. [Extending the Platform](#14-extending-the-platform)
 15. [Testing](#15-testing)
 16. [Project Structure](#16-project-structure)
-17. [Troubleshooting](#17-troubleshooting)
+17. [Destroying the Platform](#17-destroying-the-platform)
+18. [Troubleshooting](#18-troubleshooting)
 
 ---
 
@@ -542,14 +545,15 @@ sequenceDiagram
 
 | Page | Description | Access |
 |------|-------------|--------|
-| Overview | Radar chart (pillar scores), severity doughnut, service heatmap, account cards | All |
-| Findings | Filterable table with 5 dropdown filters + text search, detail modal with recommendations | All |
-| Accounts | Account CRUD, summary cards, auto-generated CloudShell IAM setup scripts | Admin: write, Viewer: read |
-| Scan | Run Check button, real-time progress bar, service/region status | Admin only |
-| History | Scan history table, trend line chart by severity | All |
-| Report | Audit-ready report by pillar, TH/EN toggle, PDF export with TOC | All |
-| Cost Advisor | RI/SP/Hub recommendations, savings charts, prioritized action plan | All |
+| Overview | Radar chart (pillar scores), severity KPIs, service x pillar heatmap, compliance summary, account cards | All |
+| Findings | Filterable table (5 filters + search), detail drawer with resource, description, recommendation | All |
+| Compliance | 7 frameworks (WAFS, CIS, NIST, SOC2, FTR, SPIP, SSB), click to expand Category → Rule ID detail (Service Screener style) | All |
+| History | Scan history table with status | All |
+| Accounts | Account CRUD, 4-step wizard (Account Info → CloudShell Script → ARN → Verify & Save) | Admin: write, Viewer: read |
+| Scan | Select accounts/regions/services with AWS icons, real-time progress bar | Admin only |
 | Team | Add/remove members, change roles, self-deletion protection | Admin only |
+| Report | Full preview with TOC, pillar analysis, all findings + remediation, compliance detail, cost overview. Thai/English toggle. PDF export | All |
+| CloudFinOps | Actual spend, RI/SP recommendations with purchase steps, Compute Optimizer rightsizing (EC2/RDS/Lambda/EBS/ASG/ECS/Idle/License), per-service tips, RI vs SP guide, custom calculator | All |
 
 ---
 
@@ -778,36 +782,55 @@ Assumptions: 3 accounts, 10 services, daily scans, 5 team members, ap-southeast-
 
 | Service | Usage | Estimated Cost |
 |---------|-------|---------------|
-| **Lambda** | ~900 invocations/mo, 256MB, avg 10s | $0.15 |
+| **Lambda** | ~900 invocations/mo, 512MB, avg 15s | $0.20 |
 | **API Gateway** | ~3,000 requests/mo | $0.01 |
 | **DynamoDB** | ~5,000 writes + 15,000 reads/mo (on-demand) | $0.02 |
-| **S3** | ~50 MB dashboard + reports | $0.01 |
+| **S3** | ~50 MB dashboard + Lambda code | $0.01 |
 | **CloudFront** | ~10 GB transfer/mo | $0.85 |
 | **Cognito** | 5 MAU (first 50,000 free) | $0.00 |
 | **STS** | ~900 AssumeRole calls/mo | $0.00 |
 | **CloudWatch Logs** | ~1 GB/mo | $0.50 |
+| **WAF** | 1 Web ACL + 2 rules | $6.00 |
 | | | |
-| **Total** | | **~$1.54/mo** |
+| **Total** | | **~$7.59/mo** |
+
+> WAF is the largest cost component. To reduce cost, you can remove the WAF association from cfn/api.yaml (not recommended for production).
 
 ### Cost at Scale
 
 | Scale | Accounts | Daily Scans | Est. Monthly Cost |
 |-------|----------|-------------|-------------------|
-| Small | 1-5 | 1 | $1-3 |
-| Medium | 10-20 | 2 | $5-15 |
-| Large | 50-100 | 4 | $30-80 |
+| Small | 1-5 | 1 | $7-10 |
+| Medium | 10-20 | 2 | $12-25 |
+| Large | 50-100 | 4 | $35-90 |
 
-### Free Tier Coverage
+### Free Tier Coverage (First 12 Months)
 
-Most components fall within AWS Free Tier for the first 12 months:
-- Lambda: 1M requests/mo free
-- DynamoDB: 25 WCU + 25 RCU free
-- API Gateway: 1M calls/mo free
-- S3: 5 GB free
-- CloudFront: 1 TB transfer free
-- Cognito: 50,000 MAU free
+| Service | Free Tier | Platform Usage | Covered? |
+|---------|-----------|----------------|----------|
+| Lambda | 1M requests + 400K GB-s | ~900 req + ~7K GB-s | Yes |
+| DynamoDB | 25 WCU + 25 RCU | On-demand ~$0.02 | Yes |
+| API Gateway | 1M calls | ~3K calls | Yes |
+| S3 | 5 GB + 20K GET | ~50 MB | Yes |
+| CloudFront | 1 TB transfer | ~10 GB | Yes |
+| Cognito | 50,000 MAU | 5 users | Yes |
+| WAF | Not included in Free Tier | $6/mo | No |
 
-**Estimated cost during Free Tier: $0/mo** for typical usage.
+**Estimated cost during Free Tier: ~$6/mo** (WAF only). Without WAF: **$0/mo**.
+
+### Cost When Platform is Idle (No Scans)
+
+If no scans are running and no users are active:
+
+| Service | Idle Cost |
+|---------|-----------|
+| Lambda | $0 (no invocations) |
+| API Gateway | $0 (no requests) |
+| DynamoDB | $0 (on-demand, no reads/writes) |
+| S3 | $0.001 (storage only) |
+| CloudFront | $0 (no traffic) |
+| WAF | $6.00 (fixed monthly) |
+| **Total idle** | **~$6/mo** |
 
 ---
 
@@ -916,23 +939,15 @@ pytest -k "roundtrip or invariant or correctness"
 ├── pyproject.toml
 │
 ├── dashboard/               # Web Dashboard (vanilla HTML/CSS/JS)
-│   ├── index.html           # SPA shell
-│   ├── css/style.css        # Design system (warm parchment theme)
+│   ├── index.html           # SPA shell (top nav, command palette, tweaks)
+│   ├── css/style.css        # Design system (Instrument Serif + Inter Tight)
 │   └── js/
 │       ├── config.js        # Auto-generated (API URL, Cognito IDs)
-│       ├── app.js           # Router, navigation, dark/light mode
-│       ├── auth.js          # Cognito auth (no MFA) + demo mode
+│       ├── auth.js          # Cognito auth (login, token refresh, logout)
 │       ├── api.js           # API client with JWT
-│       └── pages/
-│           ├── login.js     # Login + force change password + show/hide password
-│           ├── overview.js  # Charts (radar, doughnut, heatmap)
-│           ├── findings.js  # Filterable table + detail modal
-│           ├── accounts.js  # CRUD + IAM script generation
-│           ├── scan.js      # Run scan + progress bar
-│           ├── history.js   # History table + trend chart
-│           ├── report.js    # Audit report (TH/EN) + PDF
-│           ├── cost.js      # Cost Advisor (RI, SP, Hub)
-│           └── team.js      # Team management
+│       ├── data.js          # Data layer (loads from API, derives pillars/frameworks)
+│       ├── pages.js         # All 9 pages (overview, findings, compliance, etc.)
+│       └── app.js           # Router, nav, avatar menu, page wiring, PDF gen
 │
 ├── backend/                 # Lambda handlers (TypeScript)
 │   ├── auth/auth-module.ts  # Role extraction, authorization
@@ -978,7 +993,53 @@ pytest -k "roundtrip or invariant or correctness"
 
 ---
 
-## 17. Troubleshooting
+## 17. Destroying the Platform
+
+### Safe Removal
+
+The destroy command removes **only** WA Review platform resources. It does NOT touch:
+- Other CloudFormation stacks in the account
+- EC2 instances, RDS databases, or any production workloads
+- IAM roles in target accounts (WAReviewReadOnly) — remove manually if needed
+- CloudWatch log groups — retained for audit trail (delete manually if desired)
+
+```bash
+# Remove all WA Review stacks
+./deploy.sh --destroy
+
+# Or with specific profile/region
+./deploy.sh --destroy --profile production --region ap-southeast-1
+```
+
+### What Gets Deleted
+
+| Stack | Resources Removed |
+|-------|-------------------|
+| wa-review-api | API Gateway, 3 Lambda functions, IAM role, WAF |
+| wa-review-frontend | S3 bucket (dashboard files), CloudFront distribution |
+| wa-review-auth | Cognito User Pool (all users deleted) |
+| wa-review-data | DynamoDB table (all scan data deleted) |
+
+### Manual Cleanup (Optional)
+
+```bash
+# Remove Lambda code S3 bucket
+aws s3 rb s3://wa-review-lambda-ACCOUNT_ID-REGION --force
+
+# Remove CloudWatch log groups
+aws logs delete-log-group --log-group-name /aws/lambda/wa-review-scan-handler
+aws logs delete-log-group --log-group-name /aws/lambda/wa-review-account-handler
+aws logs delete-log-group --log-group-name /aws/lambda/wa-review-team-handler
+
+# Remove IAM role from target accounts (run in each target account)
+aws iam detach-role-policy --role-name WAReviewReadOnly --policy-arn arn:aws:iam::aws:policy/ReadOnlyAccess
+aws iam detach-role-policy --role-name WAReviewReadOnly --policy-arn arn:aws:iam::aws:policy/AWSBillingReadOnlyAccess
+aws iam delete-role --role-name WAReviewReadOnly
+```
+
+---
+
+## 18. Troubleshooting
 
 | Issue | Solution |
 |-------|----------|

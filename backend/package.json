@@ -11,6 +11,7 @@
     "@aws-sdk/client-cloudtrail": "^3.1032.0",
     "@aws-sdk/client-cloudwatch-logs": "^3.1032.0",
     "@aws-sdk/client-cognito-identity-provider": "^3.400.0",
+    "@aws-sdk/client-compute-optimizer": "^3.1032.0",
     "@aws-sdk/client-config-service": "^3.1032.0",
     "@aws-sdk/client-cost-explorer": "^3.1032.0",
     "@aws-sdk/client-dynamodb": "^3.400.0",

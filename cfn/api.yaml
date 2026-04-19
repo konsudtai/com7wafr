@@ -97,6 +97,9 @@ Resources:
                   - elasticfilesystem:DescribeFileSystems
                   - elasticache:DescribeCacheClusters
                   - redshift:DescribeClusters
+                  - compute-optimizer:GetEC2InstanceRecommendations
+                  - compute-optimizer:GetLambdaFunctionRecommendations
+                  - compute-optimizer:GetEBSVolumeRecommendations
                 Resource: '*'
         - PolicyName: CognitoAccess
           PolicyDocument:

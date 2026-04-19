@@ -136,19 +136,25 @@ code, kbd, .mono { font-family: var(--font-mono); font-size: .82em; }
 .nav__item.open .nav__btn svg { transform: rotate(180deg); }
 
 .nav__panel {
-  position: absolute; top: calc(100% + 8px); left: 50%;
-  transform: translateX(-50%) translateY(-4px);
+  position: absolute; top: 100%; left: 50%;
+  transform: translateX(-50%);
   min-width: 520px;
   background: var(--surface-2);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-pop);
   padding: 14px;
+  padding-top: 22px;          /* extra top padding absorbs the bridge area */
   display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
-  opacity: 0; pointer-events: none; transition: opacity .14s, transform .14s;
+  opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s;
 }
-.nav__item:last-child .nav__panel { left: auto; right: 0; transform: translateX(0) translateY(-4px); }
-.nav__item.open .nav__panel { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
-.nav__item:last-child.open .nav__panel { transform: translateX(0) translateY(0); }
+/* Invisible bridge between button and panel so mouse doesn't leave */
+.nav__panel::before {
+  content: '';
+  position: absolute; top: -12px; left: 0; right: 0; height: 14px;
+}
+.nav__item:last-child .nav__panel { left: auto; right: 0; transform: translateX(0); }
+.nav__item.open .nav__panel { opacity: 1; pointer-events: auto; }
+.nav__item:last-child.open .nav__panel { transform: translateX(0); }
 
 .nav__panel-col { display: flex; flex-direction: column; gap: 2px; }
 .nav__panel-label {
@@ -408,7 +414,7 @@ main { max-width: 1400px; margin: 0 auto; padding: 40px 24px 80px; }
 .foot { border-top: 1px solid var(--line); padding: 24px 0; margin-top: 40px; }
 .foot__inner { max-width: 1400px; margin: 0 auto; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--text-3); }
 .foot__brand { display: flex; align-items: center; gap: 10px; }
-.foot__brand img { height: 20px; opacity: .75; }
+.foot__brand img { height: 26px; opacity: .75; }
 .foot__links { display: flex; gap: 16px; }
 .foot__links a { color: var(--text-3); } .foot__links a:hover { color: var(--text); }
 
@@ -463,3 +469,47 @@ main { max-width: 1400px; margin: 0 auto; padding: 40px 24px 80px; }
 .split__rail { border-right: 1px solid var(--line); padding: 16px; background: var(--surface); }
 .split__main { padding: 24px; }
 @media (max-width: 800px) { .split { grid-template-columns: 1fr; } .split__rail { border-right: 0; border-bottom: 1px solid var(--line); } }
+
+/* ---------- Avatar dropdown menu ---------- */
+.avatar-wrap { position: relative; }
+.avatar-menu {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  min-width: 260px;
+  background: var(--surface-2);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-pop);
+  padding: 8px;
+  opacity: 0; pointer-events: none;
+  transition: opacity .18s;
+  z-index: 100;
+}
+.avatar-wrap.open .avatar-menu { opacity: 1; pointer-events: auto; }
+.avatar-menu__user { padding: 12px; }
+.avatar-menu__name { font-weight: 600; font-size: 14px; color: var(--text); }
+.avatar-menu__email { font-size: 12.5px; color: var(--text-3); margin-top: 2px; font-family: var(--font-mono); }
+.avatar-menu__sep { height: 1px; background: var(--line); margin: 4px 0; }
+.avatar-menu__item {
+  display: block; width: 100%; text-align: left;
+  padding: 10px 12px; border-radius: var(--r-sm);
+  font-size: 13.5px; color: var(--text-2);
+  transition: background .14s, color .14s;
+  border: 0; background: none; cursor: pointer; font: inherit;
+}
+.avatar-menu__item:hover { background: var(--line); color: var(--text); }
+.avatar-menu__item--danger { color: var(--s-crit); }
+.avatar-menu__item--danger:hover { background: color-mix(in oklab, var(--s-crit) 10%, transparent); color: var(--s-crit); }
+
+/* ---------- Service chip grid (scan page) ---------- */
+.svc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.svc-chip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-radius: var(--r-sm);
+  background: var(--surface); border: 1px solid var(--line);
+  font-size: 13px; color: var(--text); cursor: pointer;
+  transition: border-color .14s, background .14s;
+}
+.svc-chip:hover { border-color: var(--ac-400); background: var(--surface-2); }
+.svc-chip:has(input:checked) { border-color: var(--ac-500); background: color-mix(in oklab, var(--ac-100) 40%, var(--surface-2)); }
+.svc-chip input { accent-color: var(--ac-500); margin: 0; flex-shrink: 0; }
+.svc-chip svg { flex-shrink: 0; }
+.svc-chip span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>WA Review — Well-Architected Intelligence</title>
+<title>AWS WA Review — Well-Architected Intelligence</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -22,7 +22,7 @@
         <svg viewBox="0 0 24 24" width="22" height="22"><path d="M3 12 L12 3 L21 12 L12 21 Z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 12 L12 7 L17 12 L12 17 Z" fill="currentColor"/></svg>
       </span>
       <span class="brand__wordmark">
-        <span class="brand__name">WA Review</span>
+        <span class="brand__name">AWS WA Review</span>
         <span class="brand__sub">Well-Architected Intelligence</span>
       </span>
     </a>
@@ -118,7 +118,21 @@
       <button class="icon-btn" id="themeBtn" aria-label="Toggle theme" title="Toggle theme">
         <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M11 8a3 3 0 0 1-3 3 3 3 0 0 1-3-3 3 3 0 0 1 3-3 3 3 0 0 1 3 3Z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6 13 13M3 13l1.4-1.4M11.6 4.4 13 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
       </button>
-      <div class="avatar" title="konsudtai@com7.co.th">KS</div>
+      <div class="avatar-wrap" id="avatarWrap">
+        <button class="avatar" id="avatarBtn" title="Account menu">KS</button>
+        <div class="avatar-menu" id="avatarMenu">
+          <div class="avatar-menu__user" id="avatar-user-info">
+            <div class="avatar-menu__name" id="avatar-name">—</div>
+            <div class="avatar-menu__email" id="avatar-email">—</div>
+          </div>
+          <div class="avatar-menu__sep"></div>
+          <button class="avatar-menu__item" id="menu-profile">Personal Information</button>
+          <button class="avatar-menu__item" id="menu-reset-pw">Reset Password</button>
+          <button class="avatar-menu__item" id="menu-mobile">Add Mobile Number</button>
+          <div class="avatar-menu__sep"></div>
+          <button class="avatar-menu__item avatar-menu__item--danger" id="menu-logout">Logout</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -133,7 +147,7 @@
 <footer class="foot">
   <div class="foot__inner">
     <div class="foot__brand">
-      <img src="img/com7-logo.avif" alt="Com7 Business" />
+      <img src="img/com7-logo.avif" alt="Com7 Business" style="height:26px;" />
       <span>Powered by Com7 Business · deployed in <code>ap-southeast-1</code></span>
     </div>
     <div class="foot__links">
