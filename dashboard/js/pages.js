@@ -9,7 +9,10 @@ window.PAGES = (() => {
   const heatColor = v => { const hue = 30 + (1-v)*80; return `hsl(${hue} 65% ${92-v*45}%)`; };
 
   function ph({eyebrow, title, sub, actions=''}) {
-    return `<section class="ph"><div><div class="ph__eyebrow">${eyebrow}</div><h1 class="display">${title}</h1>${sub?`<p class="ph__sub">${sub}</p>`:''}</div><div class="ph__meta">${actions}</div></section>`;
+    const acctChips = D.accounts.length > 1
+      ? `<div class="acct-bar"><button class="acct-chip ${!D.selectedAccount?'active':''}" data-acct="">All Accounts</button>${D.accounts.map(a => `<button class="acct-chip ${D.selectedAccount===a.id?'active':''}" data-acct="${a.id}">${a.alias||a.id}</button>`).join('')}</div>`
+      : '';
+    return `<section class="ph"><div><div class="ph__eyebrow">${eyebrow}</div><h1 class="display">${title}</h1>${sub?`<p class="ph__sub">${sub}</p>`:''}</div><div class="ph__meta">${actions}</div></section>${acctChips}`;
   }
 
   function empty(msg) { return `<div class="empty"><h3>${msg}</h3><p>Run a scan first to see data here.</p></div>`; }

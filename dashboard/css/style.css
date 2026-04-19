@@ -569,3 +569,20 @@ main { max-width: 1400px; margin: 0 auto; padding: 40px 24px 80px; }
 .ai-action__risk--LOW { background: color-mix(in oklab, var(--s-low) 14%, transparent); color: var(--s-low); }
 .ai-action__risk--MEDIUM { background: color-mix(in oklab, var(--s-med) 14%, transparent); color: var(--s-med); }
 .ai-action__risk--HIGH { background: color-mix(in oklab, var(--s-crit) 14%, transparent); color: var(--s-crit); }
+
+/* ---------- Account selector bar ---------- */
+.acct-bar {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin-bottom: 24px; padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.acct-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 999px;
+  font-size: 13px; font-weight: 500;
+  background: var(--surface); border: 1px solid var(--line-2);
+  color: var(--text-2); cursor: pointer;
+  transition: all .14s;
+}
+.acct-chip:hover { border-color: var(--ac-400); color: var(--text); }
+.acct-chip.active { background: var(--ac-500); color: #fff; border-color: var(--ac-500); }
