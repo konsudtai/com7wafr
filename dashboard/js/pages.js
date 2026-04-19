@@ -5,6 +5,28 @@ window.PAGES = (() => {
   // ---------- helpers ----------
   const sevBadge = s => `<span class="badge badge--${({CRITICAL:'crit',HIGH:'high',MEDIUM:'med',LOW:'low',INFORMATIONAL:'info'})[s]||'info'}">${s}</span>`;
   const F = () => D.getFindings ? D.getFindings() : D.findings; // filtered findings by selected account
+
+  // Derive pillars/services/frameworks from filtered findings
+  function derivePillars(ff) {
+    const pillarMap = {};
+    ff.forEach(f => {
+      const p = f.pillar || 'Unknown';
+      if (!pillarMap[p]) pillarMap[p] = { id: p.slice(0,2).toUpperCase(), name: p, score: 100, crit: 0, high: 0, med: 0, low: 0, info: 0 };
+      const s = (f.severity || '').toUpperCase();
+      if (s === 'CRITICAL') pillarMap[p].crit++;
+      else if (s === 'HIGH') pillarMap[p].high++;
+      else if (s === 'MEDIUM') pillarMap[p].med++;
+      else if (s === 'LOW') pillarMap[p].low++;
+      else pillarMap[p].info++;
+    });
+    return ['Security','Reliability','Operational Excellence','Performance Efficiency','Cost Optimization'].map(name => {
+      const d = pillarMap[name] || { id: name.slice(0,2).toUpperCase(), name, score: 100, crit: 0, high: 0, med: 0, low: 0, info: 0 };
+      d.score = Math.max(0, 100 - d.crit * 15 - d.high * 8 - d.med * 3 - d.low * 1);
+      return d;
+    });
+  }
+  function deriveServices(ff) { return [...new Set(ff.map(f => f.service).filter(Boolean))].sort(); }
+  function deriveFrameworks(ff) { return D._evaluateFrameworks ? D._evaluateFrameworks(ff.map(f=>({check_id:f.check_id,service:f.service,severity:f.severity,title:f.title,recommendation:f.recommendation,description:f.description,resource_id:f.resource,resource:f.resource}))) : D.frameworks; }
   const money = n => '$' + (n||0).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
   const heatColor = v => { const hue = 30 + (1-v)*80; return `hsl(${hue} 65% ${92-v*45}%)`; };
 
@@ -20,33 +42,36 @@ window.PAGES = (() => {
   // ==================== OVERVIEW ====================
   function overview() {
     const findings = F();
+    const pillars = derivePillars(findings);
+    const services = deriveServices(findings);
+    const frameworks = deriveFrameworks(findings);
     if (!findings.length) return empty('No scan data yet');
-    const totals = D.accounts.reduce((a,x)=>({crit:a.crit+x.critical,high:a.high+x.high,med:a.med+x.medium,low:a.low+x.low,info:a.info+x.info}),{crit:0,high:0,med:0,low:0,info:0});
+    const totals = findings.reduce((a,f)=>{const s=(f.severity||"").toUpperCase();if(s==="CRITICAL")a.crit++;else if(s==="HIGH")a.high++;else if(s==="MEDIUM")a.med++;else if(s==="LOW")a.low++;else a.info++;return a;},{crit:0,high:0,med:0,low:0,info:0});
     const total = totals.crit+totals.high+totals.med+totals.low+totals.info;
-    const avgScore = D.pillars.length ? Math.round(D.pillars.reduce((a,p)=>a+p.score,0)/D.pillars.length) : 0;
+    const avgScore = pillars.length ? Math.round(pillars.reduce((a,p)=>a+p.score,0)/pillars.length) : 0;
 
     // Radar SVG
-    const N=D.pillars.length||5, R=110, CX=130, CY=130;
-    const pts = D.pillars.map((p,i)=>{ const a=-Math.PI/2+(Math.PI*2*i/N); const r=R*(p.score/100); return [CX+Math.cos(a)*r, CY+Math.sin(a)*r]; });
-    const gridRings = [0.25,0.5,0.75,1].map(f=>{ const ring=D.pillars.map((_,i)=>{ const a=-Math.PI/2+(Math.PI*2*i/N); return [CX+Math.cos(a)*R*f, CY+Math.sin(a)*R*f]; }); return `<polygon points="${ring.map(p=>p.join(',')).join(' ')}" fill="none" stroke="var(--line-2)" stroke-width="1"/>`; }).join('');
-    const spokes = D.pillars.map((p,i)=>{ const a=-Math.PI/2+(Math.PI*2*i/N); const x=CX+Math.cos(a)*R, y=CY+Math.sin(a)*R; const lx=CX+Math.cos(a)*(R+18), ly=CY+Math.sin(a)*(R+18); return `<line x1="${CX}" y1="${CY}" x2="${x}" y2="${y}" stroke="var(--line-2)" stroke-width="1"/><text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" font-size="9.5" fill="var(--text-3)">${p.id}</text>`; }).join('');
+    const N=pillars.length||5, R=110, CX=130, CY=130;
+    const pts = pillars.map((p,i)=>{ const a=-Math.PI/2+(Math.PI*2*i/N); const r=R*(p.score/100); return [CX+Math.cos(a)*r, CY+Math.sin(a)*r]; });
+    const gridRings = [0.25,0.5,0.75,1].map(f=>{ const ring=pillars.map((_,i)=>{ const a=-Math.PI/2+(Math.PI*2*i/N); return [CX+Math.cos(a)*R*f, CY+Math.sin(a)*R*f]; }); return `<polygon points="${ring.map(p=>p.join(',')).join(' ')}" fill="none" stroke="var(--line-2)" stroke-width="1"/>`; }).join('');
+    const spokes = pillars.map((p,i)=>{ const a=-Math.PI/2+(Math.PI*2*i/N); const x=CX+Math.cos(a)*R, y=CY+Math.sin(a)*R; const lx=CX+Math.cos(a)*(R+18), ly=CY+Math.sin(a)*(R+18); return `<line x1="${CX}" y1="${CY}" x2="${x}" y2="${y}" stroke="var(--line-2)" stroke-width="1"/><text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" font-size="9.5" fill="var(--text-3)">${p.id}</text>`; }).join('');
     const area = pts.length ? `<polygon points="${pts.map(p=>p.join(',')).join(' ')}" fill="color-mix(in oklab, var(--ac-500) 22%, transparent)" stroke="var(--ac-500)" stroke-width="1.8"/>` : '';
     const dots = pts.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="var(--ac-500)"/>`).join('');
 
     // Heatmap — real data
-    const heatServices = D.services.slice(0,8);
+    const heatServices = services.slice(0,8);
     const heatMax = Math.max(1, ...findings.map(()=>1));
     const heatRows = heatServices.map(s => {
-      const cells = D.pillars.map(p => {
+      const cells = pillars.map(p => {
         const count = findings.filter(f => f.service === s && f.pillar === p.name).length;
-        const v = Math.min(1, count / Math.max(1, total/D.pillars.length/heatServices.length * 3));
+        const v = Math.min(1, count / Math.max(1, total/pillars.length/heatServices.length * 3));
         return `<div class="heat__cell" style="background:${count>0?heatColor(v):'var(--surface)'}">${count||''}</div>`;
       }).join('');
       return `<div class="heat__row-label">${s}</div>${cells}`;
     }).join('');
 
     // Compliance summary
-    const fwCards = D.frameworks.map(f => {
+    const fwCards = frameworks.map(f => {
       const pct = f.controls > 0 ? Math.round(f.passed/f.controls*100) : 0;
       return `<div class="card" style="padding:16px; text-align:center;">
         <div class="t3" style="font-size:10px; letter-spacing:.1em; text-transform:uppercase">${f.id}</div>
@@ -56,7 +81,7 @@ window.PAGES = (() => {
     }).join('');
 
     return `
-      ${ph({ eyebrow:'Monitor · Overview', title:`Your cloud, <em>at a glance.</em>`, sub:`${D.selectedAccount ? D.accounts.find(a=>a.id===D.selectedAccount)?.alias || D.selectedAccount : D.accounts.length + ' AWS account(s)'} · ${total} findings · ${D.services.length} services scanned` })}
+      ${ph({ eyebrow:'Monitor · Overview', title:`Your cloud, <em>at a glance.</em>`, sub:`${D.selectedAccount ? D.accounts.find(a=>a.id===D.selectedAccount)?.alias || D.selectedAccount : D.accounts.length + ' AWS account(s)'} · ${total} findings · ${services.length} services scanned` })}
 
       <div class="grid grid-4 mb-24">
         <div class="kpi"><div class="kpi__label">Overall Score</div><div class="kpi__val">${avgScore}</div></div>
@@ -66,15 +91,15 @@ window.PAGES = (() => {
       </div>
 
       <div class="grid grid-5 mb-24">
-        ${D.pillars.map(p => `<div class="pillar"><div class="pillar__head"><span class="pillar__name">${p.name}</span><span class="pillar__score" style="color:${p.score>=75?'var(--s-low)':p.score>=60?'var(--s-med)':'var(--s-crit)'}">${p.score}</span></div><div class="pillar__bar"><span style="width:${p.score}%;background:${p.score>=75?'var(--s-low)':p.score>=60?'var(--s-med)':'var(--s-crit)'}"></span></div><div class="pillar__sev"><span><span class="sq sq--crit"></span> <b>${p.crit}</b></span><span><span class="sq sq--high"></span> <b>${p.high}</b></span><span><span class="sq sq--med"></span> <b>${p.med}</b></span><span><span class="sq sq--low"></span> <b>${p.low}</b></span></div></div>`).join('')}
+        ${pillars.map(p => `<div class="pillar"><div class="pillar__head"><span class="pillar__name">${p.name}</span><span class="pillar__score" style="color:${p.score>=75?'var(--s-low)':p.score>=60?'var(--s-med)':'var(--s-crit)'}">${p.score}</span></div><div class="pillar__bar"><span style="width:${p.score}%;background:${p.score>=75?'var(--s-low)':p.score>=60?'var(--s-med)':'var(--s-crit)'}"></span></div><div class="pillar__sev"><span><span class="sq sq--crit"></span> <b>${p.crit}</b></span><span><span class="sq sq--high"></span> <b>${p.high}</b></span><span><span class="sq sq--med"></span> <b>${p.med}</b></span><span><span class="sq sq--low"></span> <b>${p.low}</b></span></div></div>`).join('')}
       </div>
 
       <div class="grid grid-2 mb-24">
         <div class="card"><div class="card__head"><h3>Pillar Radar</h3></div><div class="radar"><svg viewBox="0 0 260 260">${gridRings}${spokes}${area}${dots}</svg></div></div>
-        <div class="card"><div class="card__head"><h3>Service x Pillar</h3></div><div class="heat"><div></div>${D.pillars.map(p=>`<div class="heat__col-label">${p.id}</div>`).join('')}${heatRows}</div></div>
+        <div class="card"><div class="card__head"><h3>Service x Pillar</h3></div><div class="heat"><div></div>${pillars.map(p=>`<div class="heat__col-label">${p.id}</div>`).join('')}${heatRows}</div></div>
       </div>
 
-      ${D.frameworks.length ? `<h3 class="mb-16" style="font-family:var(--font-display)">Compliance Frameworks</h3><div class="grid grid-4 mb-24">${fwCards}</div>` : ''}
+      ${frameworks.length ? `<h3 class="mb-16" style="font-family:var(--font-display)">Compliance Frameworks</h3><div class="grid grid-4 mb-24">${fwCards}</div>` : ''}
 
       <div class="card card--flush mb-24">
         <div class="card__head" style="padding:20px 24px 0"><h3>Account Summary</h3><a href="#accounts" class="btn btn--sm btn--ghost" data-route="accounts">Manage →</a></div>
@@ -121,9 +146,10 @@ window.PAGES = (() => {
 
   // ==================== COMPLIANCE ====================
   function compliance() {
-    if (!D.frameworks.length) return empty('No compliance data');
+    const frameworks = deriveFrameworks(F());
+    if (!frameworks.length) return empty('No compliance data');
 
-    const cards = D.frameworks.map(f => {
+    const cards = frameworks.map(f => {
       const pct = f.controls>0 ? Math.round(f.passed/f.controls*100) : 0;
       const needAttn = (f.details||[]).filter(d=>d.status==='Need Attention').length;
       const compliant = (f.details||[]).filter(d=>d.status==='Compliant').length;
@@ -138,7 +164,7 @@ window.PAGES = (() => {
     }).join('');
 
     // Detail panels grouped by Category like Service Screener
-    const panels = D.frameworks.map(f => {
+    const panels = frameworks.map(f => {
       const details = f.details || [];
       const categories = {};
       details.forEach(d => { (categories[d.category] ||= []).push(d); });
@@ -362,7 +388,10 @@ window.PAGES = (() => {
   function report() {
     const ff = F();
     if (!ff.length) return empty('No scan data — run a scan first to generate a report');
-    const avgScore = D.pillars.length ? Math.round(D.pillars.reduce((a,p)=>a+p.score,0)/D.pillars.length) : 0;
+    const pillars = derivePillars(ff);
+    const services = deriveServices(ff);
+    const frameworks = deriveFrameworks(ff);
+    const avgScore = pillars.length ? Math.round(pillars.reduce((a,p)=>a+p.score,0)/pillars.length) : 0;
     const critCount = ff.filter(f=>f.severity==='CRITICAL').length;
     const highCount = ff.filter(f=>f.severity==='HIGH').length;
     const medCount = ff.filter(f=>f.severity==='MEDIUM').length;
@@ -416,7 +445,7 @@ window.PAGES = (() => {
             </div>
             <div>
               <label class="t3" style="font-size:11px; display:block; margin-bottom:4px;">Frameworks</label>
-              <div class="flex gap-8 wrap">${D.frameworks.map(f=>`<label class="chip"><input type="checkbox" name="rpt-fw" value="${f.id}" checked style="accent-color:var(--ac-500)"/> ${f.id.toUpperCase()}</label>`).join('')}</div>
+              <div class="flex gap-8 wrap">${frameworks.map(f=>`<label class="chip"><input type="checkbox" name="rpt-fw" value="${f.id}" checked style="accent-color:var(--ac-500)"/> ${f.id.toUpperCase()}</label>`).join('')}</div>
             </div>
           </div>
           <button class="btn btn--accent" id="btn-gen-pdf2">Generate PDF</button>
@@ -433,7 +462,7 @@ window.PAGES = (() => {
           <div class="flex gap-24" style="font-size:13px; color:var(--text-2);">
             <div><span data-t="date">${T.en.date}</span>: <strong class="rpt-date-en">${todayEN}</strong><strong class="rpt-date-th" style="display:none">${todayTH}</strong></div>
             <div><span data-t="region">${T.en.region}</span>: <strong>ap-southeast-1</strong></div>
-            <div><span data-t="services">${T.en.services}</span>: <strong>${D.services.length}</strong></div>
+            <div><span data-t="services">${T.en.services}</span>: <strong>${services.length}</strong></div>
             <div><span data-t="findings">${T.en.findings}</span>: <strong>${ff.length}</strong></div>
           </div>
         </div>
@@ -446,7 +475,7 @@ window.PAGES = (() => {
             <div class="flex between" style="padding:6px 0; border-bottom:1px dotted var(--line-2);"><span>2. <span data-t="s2">${T.en.s2}</span></span><span class="t3">5 Pillars</span></div>
             <div class="flex between" style="padding:6px 0; border-bottom:1px dotted var(--line-2);"><span>3. <span data-t="s3">${T.en.s3}</span></span><span class="t3">${topRecs.length} items</span></div>
             <div class="flex between" style="padding:6px 0; border-bottom:1px dotted var(--line-2);"><span>4. <span data-t="s4">${T.en.s4}</span></span><span class="t3">${ff.length} findings</span></div>
-            <div class="flex between" style="padding:6px 0; border-bottom:1px dotted var(--line-2);"><span>5. <span data-t="s5">${T.en.s5}</span></span><span class="t3">${D.frameworks.length} frameworks</span></div>
+            <div class="flex between" style="padding:6px 0; border-bottom:1px dotted var(--line-2);"><span>5. <span data-t="s5">${T.en.s5}</span></span><span class="t3">${frameworks.length} frameworks</span></div>
             ${totalSpend > 0 ? '<div class="flex between" style="padding:6px 0; border-bottom:1px dotted var(--line-2);"><span>6. <span data-t="s6">' + T.en.s6 + '</span></span><span class="t3">$' + money(totalSpend) + '/mo</span></div>' : ''}
           </div>
         </div>
@@ -455,7 +484,7 @@ window.PAGES = (() => {
         <div style="padding:32px 40px; border-bottom:1px solid var(--line);">
           <div class="t3" style="font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--ac-500); margin-bottom:8px;">Section 1</div>
           <h2 style="font-family:var(--font-display); font-size:22px; margin-bottom:16px;" data-t="s1">${T.en.s1}</h2>
-          <p class="t2 rpt-s1-desc" style="margin-bottom:20px; line-height:1.7; font-size:14px;">${T.en.s1desc.replace('{accts}',D.accounts.length).replace('{svcs}',D.services.length)}</p>
+          <p class="t2 rpt-s1-desc" style="margin-bottom:20px; line-height:1.7; font-size:14px;">${T.en.s1desc.replace('{accts}',D.accounts.length).replace('{svcs}',services.length)}</p>
           <p class="t2" style="margin-bottom:20px; line-height:1.7; font-size:14px;"><span data-t="scoreIs">${T.en.scoreIs}</span> <strong>${avgScore}/100</strong>. ${ff.length} <span data-t="findingsFound">${T.en.findingsFound}</span> <strong style="color:var(--s-crit)">${critCount} Critical</strong>, <strong style="color:var(--s-high)">${highCount} High</strong>, <strong style="color:var(--s-med)">${medCount} Medium</strong>, <strong style="color:var(--s-low)">${lowCount} Low</strong>. ${critCount > 0 ? '<span data-t="critImmediate">' + T.en.critImmediate + '</span>' : '<span data-t="noCrit">' + T.en.noCrit + '</span>'}</p>
           <div class="grid grid-4" style="gap:12px;">
             <div style="padding:16px; background:var(--surface); border-radius:var(--r-sm); text-align:center;"><div class="t3" style="font-size:11px;" data-t="score">${T.en.score}</div><div style="font-family:var(--font-display); font-size:36px;">${avgScore}</div></div>
@@ -469,7 +498,7 @@ window.PAGES = (() => {
         <div style="padding:32px 40px; border-bottom:1px solid var(--line);">
           <div class="t3" style="font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--ac-500); margin-bottom:8px;">Section 2</div>
           <h2 style="font-family:var(--font-display); font-size:22px; margin-bottom:20px;" data-t="s2">${T.en.s2}</h2>
-          ${D.pillars.map(p => {
+          ${pillars.map(p => {
             const topF = ff.filter(f=>f.pillar===p.name&&(f.severity==='CRITICAL'||f.severity==='HIGH')).slice(0,3);
             return `<div style="margin-bottom:24px; padding:20px; background:var(--surface); border-radius:var(--r-md);">
               <div class="flex between center mb-8"><h3 style="font-size:16px;">${p.name}</h3><span style="font-family:var(--font-display); font-size:28px; color:${p.score>=75?'var(--s-low)':p.score>=60?'var(--s-med)':'var(--s-crit)'};">${p.score}</span></div>
@@ -511,7 +540,7 @@ window.PAGES = (() => {
           <div class="t3" style="font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--ac-500); margin-bottom:8px;">Section 5</div>
           <h2 style="font-family:var(--font-display); font-size:22px; margin-bottom:8px;" data-t="s5">${T.en.s5}</h2>
           <p class="t2 mb-24" style="font-size:13px;" data-t="s5desc">${T.en.s5desc}</p>
-          ${D.frameworks.map(f => {
+          ${frameworks.map(f => {
             const pct = f.controls>0 ? Math.round(f.passed/f.controls*100) : 0;
             const details = f.details || [];
             const cats = {};
