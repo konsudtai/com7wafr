@@ -224,6 +224,66 @@ const CompliancePage = (() => {
           ]},
         ],
       },
+      // --- FTR: Foundational Technical Review ---
+      {
+        id: 'ftr', name: 'FTR (Foundational Technical Review)', color: '#ED7100',
+        description: 'AWS Foundational Technical Review — Partner baseline security requirements',
+        categories: [
+          { category: 'FTR-SEC', title: 'Security', controls: [
+            { id: 'FTR-SEC-01', title: 'Use IAM roles instead of long-term credentials', check_ids: ['iam-001', 'iam-002'], description: 'Avoid root and long-term access keys', ref: 'https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html' },
+            { id: 'FTR-SEC-02', title: 'Enable MFA for privileged users', check_ids: ['iam-003'], description: 'MFA on all console users', ref: 'https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_mfa.html' },
+            { id: 'FTR-SEC-03', title: 'Encrypt data at rest', check_ids: ['s3-002', 'rds-002', 'ec2-002', 'kms-001', 'efs-001', 'elasticache-002', 'redshift-001', 'opensearch-001'], description: 'All data stores encrypted', ref: 'https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/protecting-data-at-rest.html' },
+            { id: 'FTR-SEC-04', title: 'Encrypt data in transit', check_ids: ['cloudfront-001', 'elb-002', 'opensearch-003', 'elasticache-001'], description: 'HTTPS/TLS everywhere', ref: 'https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/protecting-data-in-transit.html' },
+            { id: 'FTR-SEC-05', title: 'Restrict network access', check_ids: ['ec2-001', 'vpc-002', 'vpc-003', 'redshift-002'], description: 'No open SGs, no public DB access', ref: 'https://docs.aws.amazon.com/vpc/latest/userguide/VPC_SecurityGroups.html' },
+            { id: 'FTR-SEC-06', title: 'Enable logging and monitoring', check_ids: ['cloudtrail-001', 'cloudtrail-003', 'vpc-001', 'cloudwatch-001', 'guardduty-001', 'apigw-001'], description: 'CloudTrail, VPC Flow Logs, GuardDuty', ref: 'https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-getting-started.html' },
+            { id: 'FTR-SEC-07', title: 'Protect S3 from public access', check_ids: ['s3-001', 'cloudtrail-004'], description: 'Block public access on all buckets', ref: 'https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html' },
+            { id: 'FTR-SEC-08', title: 'Enable AWS Config', check_ids: ['config-001'], description: 'Track resource changes', ref: 'https://docs.aws.amazon.com/config/latest/developerguide/gs-console.html' },
+          ]},
+          { category: 'FTR-REL', title: 'Reliability', controls: [
+            { id: 'FTR-REL-01', title: 'Deploy across multiple AZs', check_ids: ['rds-001'], description: 'Multi-AZ for databases', ref: 'https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.MultiAZ.html' },
+            { id: 'FTR-REL-02', title: 'Implement backup and recovery', check_ids: ['redshift-003'], description: 'Automated backups with retention', ref: 'https://docs.aws.amazon.com/aws-backup/latest/devguide/whatisbackup.html' },
+          ]},
+          { category: 'FTR-OPS', title: 'Operational Excellence', controls: [
+            { id: 'FTR-OPS-01', title: 'Enable detailed monitoring', check_ids: ['ec2-003', 'cloudwatch-001'], description: 'Monitoring and alerting', ref: 'https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/WhatIsCloudWatch.html' },
+            { id: 'FTR-OPS-02', title: 'Use current generation resources', check_ids: ['lambda-001'], description: 'Optimize resource sizing', ref: 'https://docs.aws.amazon.com/lambda/latest/dg/configuration-memory.html' },
+          ]},
+        ],
+      },
+      // --- SSB: Startup Security Baseline ---
+      {
+        id: 'ssb', name: 'Startup Security Baseline', color: '#3F8624',
+        description: 'AWS Startup Security Baseline — minimum security controls for startups',
+        categories: [
+          { category: 'SSB-ACCT', title: 'Account Security', controls: [
+            { id: 'SSB-ACCT-01', title: 'Secure root account with MFA', check_ids: ['iam-001'], description: 'Root account must have MFA, no access keys', ref: 'https://docs.aws.amazon.com/IAM/latest/UserGuide/id_root-user.html' },
+            { id: 'SSB-ACCT-02', title: 'Use IAM roles instead of access keys', check_ids: ['iam-002'], description: 'Avoid long-term credentials', ref: 'https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html' },
+            { id: 'SSB-ACCT-03', title: 'Enable MFA for all IAM users', check_ids: ['iam-003'], description: 'All console users must have MFA', ref: 'https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_mfa.html' },
+          ]},
+          { category: 'SSB-LOG', title: 'Logging', controls: [
+            { id: 'SSB-LOG-01', title: 'Enable CloudTrail in all regions', check_ids: ['cloudtrail-001'], description: 'Multi-region trail', ref: 'https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-create-and-update-a-trail.html' },
+            { id: 'SSB-LOG-02', title: 'Enable log file validation', check_ids: ['cloudtrail-003'], description: 'Detect log tampering', ref: 'https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-log-file-validation-intro.html' },
+            { id: 'SSB-LOG-03', title: 'Encrypt CloudTrail logs', check_ids: ['cloudtrail-002'], description: 'KMS encryption for logs', ref: 'https://docs.aws.amazon.com/awscloudtrail/latest/userguide/encrypting-cloudtrail-log-files-with-aws-kms.html' },
+            { id: 'SSB-LOG-04', title: 'Enable VPC flow logs', check_ids: ['vpc-001'], description: 'Network traffic visibility', ref: 'https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html' },
+            { id: 'SSB-LOG-05', title: 'Set log retention policies', check_ids: ['cloudwatch-001'], description: 'Avoid unlimited log retention', ref: 'https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/Working-with-log-groups-and-streams.html' },
+            { id: 'SSB-LOG-06', title: 'Enable AWS Config', check_ids: ['config-001'], description: 'Track resource changes', ref: 'https://docs.aws.amazon.com/config/latest/developerguide/gs-console.html' },
+            { id: 'SSB-LOG-07', title: 'Enable GuardDuty', check_ids: ['guardduty-001'], description: 'Threat detection', ref: 'https://docs.aws.amazon.com/guardduty/latest/ug/what-is-guardduty.html' },
+          ]},
+          { category: 'SSB-NET', title: 'Network', controls: [
+            { id: 'SSB-NET-01', title: 'Restrict SSH access', check_ids: ['ec2-001', 'vpc-003'], description: 'No 0.0.0.0/0 on port 22', ref: 'https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-security-groups.html' },
+            { id: 'SSB-NET-02', title: 'Lock down default security groups', check_ids: ['vpc-002'], description: 'Remove all rules from default SG', ref: 'https://docs.aws.amazon.com/vpc/latest/userguide/default-security-group.html' },
+            { id: 'SSB-NET-03', title: 'Enforce HTTPS', check_ids: ['cloudfront-001', 'elb-002', 'opensearch-003'], description: 'TLS everywhere', ref: 'https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/protecting-data-in-transit.html' },
+          ]},
+          { category: 'SSB-DATA', title: 'Data Protection', controls: [
+            { id: 'SSB-DATA-01', title: 'Encrypt data at rest', check_ids: ['s3-002', 'rds-002', 'ec2-002', 'efs-001', 'opensearch-001', 'elasticache-002', 'redshift-001'], description: 'All data stores encrypted', ref: 'https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/protecting-data-at-rest.html' },
+            { id: 'SSB-DATA-02', title: 'Block public S3 access', check_ids: ['s3-001', 'cloudtrail-004'], description: 'S3 Block Public Access', ref: 'https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html' },
+            { id: 'SSB-DATA-03', title: 'Enable KMS key rotation', check_ids: ['kms-001'], description: 'Auto-rotate keys', ref: 'https://docs.aws.amazon.com/kms/latest/developerguide/rotate-keys.html' },
+          ]},
+          { category: 'SSB-RESIL', title: 'Resilience', controls: [
+            { id: 'SSB-RESIL-01', title: 'Enable Multi-AZ for databases', check_ids: ['rds-001'], description: 'High availability', ref: 'https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.MultiAZ.html' },
+            { id: 'SSB-RESIL-02', title: 'Enable automated backups', check_ids: ['redshift-003'], description: 'Snapshot retention', ref: 'https://docs.aws.amazon.com/aws-backup/latest/devguide/whatisbackup.html' },
+          ]},
+        ],
+      },
     ];
   }
 

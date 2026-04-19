@@ -53,6 +53,9 @@ const OverviewPage = (() => {
         <div id="pillar-cards" class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom:24px;"></div>
 
         <!-- Charts side by side -->
+        <h3 style="margin-bottom:12px;">Compliance Overview</h3>
+        <div id="compliance-summary" class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom:24px;"></div>
+
         <div class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); margin-bottom:24px;">
           <div class="card">
             <h3 style="margin-bottom:12px;">Pillar Score</h3>
@@ -251,6 +254,46 @@ const OverviewPage = (() => {
               ${d.INFORMATIONAL ? `<span class="badge badge-info">${d.INFORMATIONAL}</span>` : ''}
             </div>
           </div>
+        `;
+      }).join('');
+    }
+
+    // Compliance summary — evaluate frameworks against findings
+    const compSummaryEl = document.getElementById('compliance-summary');
+    if (compSummaryEl) {
+      const fwDefs = [
+        { id: 'wafs', name: 'Well-Architected', color: '#2d7d46', checks: ['iam-001','iam-002','iam-003','cloudtrail-001','cloudtrail-002','cloudtrail-003','vpc-001','ec2-001','vpc-002','vpc-003','s3-002','rds-002','ec2-002','kms-001','cloudfront-001','elb-002','s3-001','cloudtrail-004','kms-002'] },
+        { id: 'cis', name: 'CIS AWS', color: '#c96442', checks: ['iam-001','iam-003','cloudtrail-001','cloudtrail-002','cloudtrail-003','config-001','vpc-001','vpc-002','vpc-003','ec2-002','kms-001','s3-001','rds-002'] },
+        { id: 'spip', name: 'AWS SPIP', color: '#ED7100', checks: ['iam-001','iam-002','iam-003','s3-001','s3-002','ec2-002','rds-002','cloudfront-001','elb-002','ec2-001','vpc-002','vpc-003','vpc-001','cloudtrail-001','cloudtrail-003','cloudwatch-001','config-001','kms-001','kms-002'] },
+        { id: 'nist', name: 'NIST CSF', color: '#3334B9', checks: ['iam-001','iam-002','iam-003','s3-002','rds-002','ec2-002','cloudfront-001','elb-002','cloudtrail-001','cloudtrail-003','vpc-001','cloudwatch-001','rds-001'] },
+        { id: 'soc2', name: 'SOC 2', color: '#DD344C', checks: ['iam-001','iam-002','iam-003','vpc-002','ec2-001','vpc-001','vpc-003','cloudfront-001','elb-002','cloudtrail-001','cloudwatch-001','config-001','s3-001','s3-002','rds-002','kms-001'] },
+        { id: 'ftr', name: 'FTR', color: '#ED7100', checks: ['iam-001','iam-002','iam-003','s3-002','rds-002','ec2-002','kms-001','cloudfront-001','elb-002','ec2-001','vpc-002','vpc-003','cloudtrail-001','cloudtrail-003','vpc-001','cloudwatch-001','guardduty-001','config-001','s3-001','rds-001','ec2-003'] },
+        { id: 'ssb', name: 'Startup Baseline', color: '#3F8624', checks: ['iam-001','iam-002','iam-003','cloudtrail-001','cloudtrail-002','cloudtrail-003','vpc-001','cloudwatch-001','config-001','guardduty-001','ec2-001','vpc-002','vpc-003','cloudfront-001','elb-002','s3-002','rds-002','ec2-002','s3-001','kms-001','rds-001'] },
+      ];
+      const scannedServices = new Set(findings.map(f => (f.service || '').toLowerCase()));
+      const findingCheckIds = new Set(findings.map(f => f.check_id).filter(Boolean));
+
+      compSummaryEl.innerHTML = fwDefs.map(fw => {
+        const uniqueChecks = [...new Set(fw.checks)];
+        let pass = 0, fail = 0, na = 0;
+        uniqueChecks.forEach(cid => {
+          if (findingCheckIds.has(cid)) { fail++; }
+          else {
+            const prefix = cid.split('-')[0];
+            if (scannedServices.has(prefix)) { pass++; } else { na++; }
+          }
+        });
+        const total = pass + fail;
+        const pct = total > 0 ? Math.round((pass / total) * 100) : 0;
+        return `
+          <a href="#compliance" class="card" style="text-decoration:none; color:inherit; border-top:3px solid ${fw.color}; padding:12px; text-align:center; cursor:pointer;">
+            <p style="font-size:1.4rem; font-weight:600; color:${pct >= 70 ? 'var(--color-success)' : pct >= 40 ? 'var(--color-warning)' : 'var(--color-error)'};">${pct}%</p>
+            <p style="font-size:0.78rem; font-weight:500;">${fw.name}</p>
+            <div style="margin-top:4px; display:flex; gap:3px; justify-content:center; font-size:0.68rem;">
+              <span class="badge badge-low" style="padding:1px 4px;">${pass}</span>
+              <span class="badge badge-critical" style="padding:1px 4px;">${fail}</span>
+            </div>
+          </a>
         `;
       }).join('');
     }

@@ -211,6 +211,8 @@ const ReportPage = (() => {
     { id: 'soc2', name: 'SOC 2' },
     { id: 'wafs', name: 'Well-Architected' },
     { id: 'spip', name: 'AWS SPIP' },
+    { id: 'ftr', name: 'FTR' },
+    { id: 'ssb', name: 'Startup Security Baseline' },
   ];
   let selectedFrameworks = [];
 
@@ -448,6 +450,30 @@ const ReportPage = (() => {
         { control_id: 'P4.1', title: 'Enable CloudTrail', check_ids: ['cloudtrail-001', 'cloudtrail-003'] },
         { control_id: 'P4.6', title: 'Enable AWS Config', check_ids: ['config-001'] },
         { control_id: 'P5.3', title: 'KMS key rotation', check_ids: ['kms-001'] },
+      ]},
+      { id: 'ftr', name: 'FTR (Foundational Technical Review)', controls: [
+        { control_id: 'FTR-SEC-01', title: 'Use IAM roles', check_ids: ['iam-001', 'iam-002'] },
+        { control_id: 'FTR-SEC-02', title: 'Enable MFA', check_ids: ['iam-003'] },
+        { control_id: 'FTR-SEC-03', title: 'Encrypt at rest', check_ids: ['s3-002', 'rds-002', 'ec2-002', 'kms-001'] },
+        { control_id: 'FTR-SEC-04', title: 'Encrypt in transit', check_ids: ['cloudfront-001', 'elb-002'] },
+        { control_id: 'FTR-SEC-05', title: 'Restrict network', check_ids: ['ec2-001', 'vpc-002', 'vpc-003'] },
+        { control_id: 'FTR-SEC-06', title: 'Enable logging', check_ids: ['cloudtrail-001', 'vpc-001', 'cloudwatch-001', 'guardduty-001'] },
+        { control_id: 'FTR-SEC-07', title: 'Protect S3', check_ids: ['s3-001'] },
+        { control_id: 'FTR-SEC-08', title: 'Enable Config', check_ids: ['config-001'] },
+        { control_id: 'FTR-REL-01', title: 'Multi-AZ', check_ids: ['rds-001'] },
+      ]},
+      { id: 'ssb', name: 'Startup Security Baseline', controls: [
+        { control_id: 'SSB-ACCT-01', title: 'Secure root', check_ids: ['iam-001'] },
+        { control_id: 'SSB-ACCT-03', title: 'Enable MFA', check_ids: ['iam-003'] },
+        { control_id: 'SSB-LOG-01', title: 'CloudTrail', check_ids: ['cloudtrail-001'] },
+        { control_id: 'SSB-LOG-04', title: 'VPC flow logs', check_ids: ['vpc-001'] },
+        { control_id: 'SSB-LOG-06', title: 'AWS Config', check_ids: ['config-001'] },
+        { control_id: 'SSB-LOG-07', title: 'GuardDuty', check_ids: ['guardduty-001'] },
+        { control_id: 'SSB-NET-01', title: 'Restrict SSH', check_ids: ['ec2-001', 'vpc-003'] },
+        { control_id: 'SSB-NET-02', title: 'Default SG', check_ids: ['vpc-002'] },
+        { control_id: 'SSB-DATA-01', title: 'Encrypt at rest', check_ids: ['s3-002', 'rds-002', 'ec2-002'] },
+        { control_id: 'SSB-DATA-02', title: 'Block public S3', check_ids: ['s3-001'] },
+        { control_id: 'SSB-RESIL-01', title: 'Multi-AZ DB', check_ids: ['rds-001'] },
       ]},
     ];
     return allFw.filter(fw => selectedFrameworks.includes(fw.id));
