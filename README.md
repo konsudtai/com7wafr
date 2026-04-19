@@ -649,6 +649,19 @@ rm -rf com7wafr && git clone https://github.com/konsudtai/com7wafr.git && cd com
 3. Login and set a new password on first login (use the show/hide toggle to verify your password)
 4. Go to **Accounts** page to add AWS accounts for scanning
 
+### Enable AI Agent (WA Agent)
+
+The AI Agent requires Amazon Bedrock model access. After deployment:
+
+1. Go to **AWS Console** → **Amazon Bedrock** → **Model access** (in **us-east-1** region)
+2. Click **Manage model access**
+3. Enable: **Anthropic Claude Sonnet 4.6**, **Claude Opus 4.6**, **Amazon Nova Lite**
+4. Click **Save changes** (approval is usually instant)
+
+> Without this step, the WA Agent chat will return an access error. The platform itself works fine without AI — this is optional.
+
+> Bedrock pricing: Claude Sonnet 4.6 ~$0.02/query, Nova Lite ~$0.001/query. See [Bedrock Pricing](https://aws.amazon.com/bedrock/pricing/).
+
 ### Updating
 
 Pull latest code and re-deploy:
@@ -809,10 +822,11 @@ Assumptions: 3 accounts, 10 services, daily scans, 5 team members, ap-southeast-
 | **STS** | ~900 AssumeRole calls/mo | $0.00 |
 | **CloudWatch Logs** | ~1 GB/mo | $0.50 |
 | **WAF** | 1 Web ACL + 2 rules | $6.00 |
+| **Bedrock (AI Agent)** | ~50 queries/day (Sonnet 4.6) | $0-30 (usage-based) |
 | | | |
-| **Total** | | **~$7.59/mo** |
+| **Total** | | **~$7.59 + AI usage** |
 
-> WAF is the largest cost component. To reduce cost, you can remove the WAF association from cfn/api.yaml (not recommended for production).
+> WAF is the largest fixed cost. Bedrock AI is pay-per-use only — $0 if not used.
 
 ### Cost at Scale
 
@@ -848,6 +862,7 @@ If no scans are running and no users are active:
 | S3 | $0.001 (storage only) |
 | CloudFront | $0 (no traffic) |
 | WAF | $6.00 (fixed monthly) |
+| Bedrock | $0 (no queries) |
 | **Total idle** | **~$6/mo** |
 
 ---
