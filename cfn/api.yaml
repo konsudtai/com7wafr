@@ -129,8 +129,8 @@ Resources:
       Code:
         S3Bucket: !Ref S3BucketName
         S3Key: !Ref LambdaCodeKey
-      MemorySize: 512
-      Timeout: 300
+      MemorySize: 1024
+      Timeout: 900
       Role: !GetAtt LambdaRole.Arn
       Environment:
         Variables:
