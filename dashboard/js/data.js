@@ -10,6 +10,13 @@ window.DATA = {
   team: [],
   costOpps: [],
   loaded: false,
+  selectedAccount: '',
+
+  // Get findings filtered by selected account
+  getFindings() {
+    if (!this.selectedAccount) return this.findings;
+    return this.findings.filter(f => f.account === this.selectedAccount || f.account_id === this.selectedAccount);
+  },
 
   async load() {
     if (this.loaded) return;

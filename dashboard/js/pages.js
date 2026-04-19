@@ -4,6 +4,7 @@ window.PAGES = (() => {
 
   // ---------- helpers ----------
   const sevBadge = s => `<span class="badge badge--${({CRITICAL:'crit',HIGH:'high',MEDIUM:'med',LOW:'low',INFORMATIONAL:'info'})[s]||'info'}">${s}</span>`;
+  const F = () => D.getFindings ? D.getFindings() : D.findings; // filtered findings by selected account
   const money = n => '$' + (n||0).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
   const heatColor = v => { const hue = 30 + (1-v)*80; return `hsl(${hue} 65% ${92-v*45}%)`; };
 
@@ -15,7 +16,8 @@ window.PAGES = (() => {
 
   // ==================== OVERVIEW ====================
   function overview() {
-    if (!D.findings.length) return empty('No scan data yet');
+    const findings = F();
+    if (!findings.length) return empty('No scan data yet');
     const totals = D.accounts.reduce((a,x)=>({crit:a.crit+x.critical,high:a.high+x.high,med:a.med+x.medium,low:a.low+x.low,info:a.info+x.info}),{crit:0,high:0,med:0,low:0,info:0});
     const total = totals.crit+totals.high+totals.med+totals.low+totals.info;
     const avgScore = D.pillars.length ? Math.round(D.pillars.reduce((a,p)=>a+p.score,0)/D.pillars.length) : 0;
@@ -30,10 +32,10 @@ window.PAGES = (() => {
 
     // Heatmap — real data
     const heatServices = D.services.slice(0,8);
-    const heatMax = Math.max(1, ...D.findings.map(()=>1));
+    const heatMax = Math.max(1, ...findings.map(()=>1));
     const heatRows = heatServices.map(s => {
       const cells = D.pillars.map(p => {
-        const count = D.findings.filter(f => f.service === s && f.pillar === p.name).length;
+        const count = findings.filter(f => f.service === s && f.pillar === p.name).length;
         const v = Math.min(1, count / Math.max(1, total/D.pillars.length/heatServices.length * 3));
         return `<div class="heat__cell" style="background:${count>0?heatColor(v):'var(--surface)'}">${count||''}</div>`;
       }).join('');
@@ -51,7 +53,7 @@ window.PAGES = (() => {
     }).join('');
 
     return `
-      ${ph({ eyebrow:'Monitor · Overview', title:`Your cloud, <em>at a glance.</em>`, sub:`${D.accounts.length} AWS account(s) · ${total} findings · ${D.services.length} services scanned` })}
+      ${ph({ eyebrow:'Monitor · Overview', title:`Your cloud, <em>at a glance.</em>`, sub:`${D.selectedAccount ? D.accounts.find(a=>a.id===D.selectedAccount)?.alias || D.selectedAccount : D.accounts.length + ' AWS account(s)'} · ${total} findings · ${D.services.length} services scanned` })}
 
       <div class="grid grid-4 mb-24">
         <div class="kpi"><div class="kpi__label">Overall Score</div><div class="kpi__val">${avgScore}</div></div>
@@ -81,9 +83,10 @@ window.PAGES = (() => {
 
   // ==================== FINDINGS ====================
   function findings() {
-    if (!D.findings.length) return empty('No findings yet');
-    const uniq = k => [...new Set(D.findings.map(f=>f[k]).filter(Boolean))].sort();
-    const rows = D.findings.map(f => `
+    const ff = F();
+    if (!ff.length) return empty('No findings yet');
+    const uniq = k => [...new Set(ff.map(f=>f[k]).filter(Boolean))].sort();
+    const rows = ff.map(f => `
       <tr data-id="${f.id}">
         <td class="mono" style="font-size:12px">${f.id.slice(0,12)}</td>
         <td>${f.service}</td>
@@ -95,7 +98,7 @@ window.PAGES = (() => {
       </tr>`).join('');
 
     return `
-      ${ph({ eyebrow:'Monitor · Findings', title:`All the signals, <em>ranked.</em>`, sub:`${D.findings.length} findings across ${D.accounts.length} accounts` })}
+      ${ph({ eyebrow:'Monitor · Findings', title:`All the signals, <em>ranked.</em>`, sub:`${ff.length} findings${D.selectedAccount ? ' for ' + (D.accounts.find(a=>a.id===D.selectedAccount)?.alias || D.selectedAccount) : ' across ' + D.accounts.length + ' accounts'}` })}
       <div class="card card--flush">
         <div class="filters">
           <input type="text" id="f-search" placeholder="Search resource, title..." />
@@ -104,7 +107,7 @@ window.PAGES = (() => {
           <select id="f-svc"><option value="">All services</option>${uniq('service').map(s=>`<option>${s}</option>`).join('')}</select>
           <select id="f-acct"><option value="">All accounts</option>${uniq('account').map(s=>`<option>${s}</option>`).join('')}</select>
           <div class="filters__sep"></div>
-          <span class="chip" id="f-count">${D.findings.length} results</span>
+          <span class="chip" id="f-count">${ff.length} results</span>
         </div>
         <table class="tbl"><thead><tr><th>ID</th><th>Service</th><th>Resource</th><th>Pillar</th><th>Severity</th><th>Title</th><th>Account</th></tr></thead>
         <tbody id="findings-tbody">${rows}</tbody></table>
@@ -354,19 +357,20 @@ window.PAGES = (() => {
 
   // ==================== REPORT (full detail + Thai/EN + compliance detail) ====================
   function report() {
-    if (!D.findings.length) return empty('No scan data — run a scan first to generate a report');
+    const ff = F();
+    if (!ff.length) return empty('No scan data — run a scan first to generate a report');
     const avgScore = D.pillars.length ? Math.round(D.pillars.reduce((a,p)=>a+p.score,0)/D.pillars.length) : 0;
-    const critCount = D.findings.filter(f=>f.severity==='CRITICAL').length;
-    const highCount = D.findings.filter(f=>f.severity==='HIGH').length;
-    const medCount = D.findings.filter(f=>f.severity==='MEDIUM').length;
-    const lowCount = D.findings.filter(f=>f.severity==='LOW').length;
+    const critCount = ff.filter(f=>f.severity==='CRITICAL').length;
+    const highCount = ff.filter(f=>f.severity==='HIGH').length;
+    const medCount = ff.filter(f=>f.severity==='MEDIUM').length;
+    const lowCount = ff.filter(f=>f.severity==='LOW').length;
     const todayTH = new Date().toLocaleDateString('th-TH', {year:'numeric',month:'long',day:'numeric'});
     const todayEN = new Date().toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'});
-    const costUsage = D.findings.find(f=>f.finding_type==='COST_USAGE');
+    const costUsage = ff.find(f=>f.finding_type==='COST_USAGE');
     const totalSpend = costUsage ? costUsage.totalSpend : 0;
     const bySvc = {};
-    D.findings.filter(f=>!f.finding_type||f.finding_type==='').forEach(f => { (bySvc[f.service||'Other'] ||= []).push(f); });
-    const topRecs = D.findings.filter(f=>f.severity==='CRITICAL'||f.severity==='HIGH').slice(0,15);
+    ff.filter(f=>!f.finding_type||f.finding_type==='').forEach(f => { (bySvc[f.service||'Other'] ||= []).push(f); });
+    const topRecs = ff.filter(f=>f.severity==='CRITICAL'||f.severity==='HIGH').slice(0,15);
 
     // Thai translations
     const T = {
@@ -542,17 +546,18 @@ window.PAGES = (() => {
   // ==================== CLOUDFINOPS (real cost data) ====================
   // ==================== CLOUDFINOPS (full detail + RI/SP guidance) ====================
   function cost() {
-    if (!D.costOpps.length && !D.findings.some(f=>f.finding_type==='COST_USAGE')) return empty('No cost data — run a scan first');
+    const ff = F();
+    if (!D.costOpps.length && !ff.some(f=>f.finding_type==='COST_USAGE')) return empty('No cost data — run a scan first');
 
-    const costUsage = D.findings.find(f=>f.finding_type==='COST_USAGE');
+    const costUsage = ff.find(f=>f.finding_type==='COST_USAGE');
     const totalSpend = costUsage ? costUsage.totalSpend : 0;
     const svcBreakdown = costUsage ? costUsage.serviceBreakdown : [];
-    const riFindings = D.findings.filter(f=>f.finding_type==='RI_RECOMMENDATION');
-    const spFindings = D.findings.filter(f=>f.finding_type==='SP_RECOMMENDATION');
+    const riFindings = ff.filter(f=>f.finding_type==='RI_RECOMMENDATION');
+    const spFindings = ff.filter(f=>f.finding_type==='SP_RECOMMENDATION');
     const riSavings = riFindings.reduce((s,f)=>s+f.monthlySavings,0);
     const spSavings = spFindings.reduce((s,f)=>s+f.monthlySavings,0);
     const totalSavings = riSavings + spSavings;
-    const costOpts = D.findings.filter(f=>f.finding_type==='COST_OPTIMIZATION');
+    const costOpts = ff.filter(f=>f.finding_type==='COST_OPTIMIZATION');
     const allOpps = [...riFindings, ...spFindings, ...costOpts];
     const maxSaving = Math.max(1, ...allOpps.map(f=>f.monthlySavings||f.actualSpend||1));
 
@@ -644,7 +649,7 @@ window.PAGES = (() => {
 
       <!-- Compute Optimizer — Rightsizing -->
       ${(() => {
-        const rsFindings = D.findings.filter(f=>f.finding_type==='RIGHTSIZING');
+        const rsFindings = ff.filter(f=>f.finding_type==='RIGHTSIZING');
         const rsSavings = rsFindings.reduce((s,f)=>s+(f.monthlySavings||0),0);
         const idle = rsFindings.filter(f=>f.isIdle);
         const ec2Rs = rsFindings.filter(f=>f.service==='EC2'&&!f.isIdle);

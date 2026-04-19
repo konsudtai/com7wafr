@@ -108,6 +108,9 @@ window.App = {};
     const r = routes[key]; if (!r) return;
     const el = document.getElementById('subbar');
     el.classList.add('show');
+    const acctOptions = DATA.accounts.length
+      ? '<option value="">All Accounts</option>' + DATA.accounts.map(a => '<option value="' + a.id + '"' + (DATA.selectedAccount === a.id ? ' selected' : '') + '>' + (a.alias || a.id) + ' (' + a.id + ')</option>').join('')
+      : '<option value="">No accounts</option>';
     el.innerHTML = `
       <div class="subbar__inner">
         <div class="subbar__crumbs">
@@ -119,10 +122,15 @@ window.App = {};
           ${r.subtabs.map(([k,lbl]) => `<a class="subtab ${k===key?'active':''}" href="#${k}" data-route="${k}">${lbl}</a>`).join('')}
         </div>
         <div class="subbar__actions">
-          <span class="iconchip"><span class="dot"></span> Live · ap-southeast-1</span>
+          <select id="global-acct-filter" style="padding:4px 10px; border:1px solid var(--line-2); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font-size:12px; min-width:140px;">${acctOptions}</select>
+          <span class="iconchip"><span class="dot"></span> Live</span>
         </div>
       </div>
     `;
+    document.getElementById('global-acct-filter')?.addEventListener('change', (e) => {
+      DATA.selectedAccount = e.target.value || '';
+      render();
+    });
   }
 
   function go(key) { location.hash = '#' + key; }
