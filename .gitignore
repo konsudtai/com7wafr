@@ -36,3 +36,5 @@ htmlcov/
 # Temp
 *.bak
 *.tmp
+Kiro-WABuild_accessKeys.csv
+*.csv
