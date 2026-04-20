@@ -36,5 +36,10 @@ htmlcov/
 # Temp
 *.bak
 *.tmp
-Kiro-WABuild_accessKeys.csv
+
+# Credentials / Secrets (NEVER commit)
+*accessKeys*
+*credentials*
+*.pem
+*.key
 *.csv
