@@ -160,7 +160,6 @@ window.App = {};
     wireFinOps();
     wireCompliance();
     wireInvestigate();
-    wireAIChat();
     wireAccountChips();
 
     // Update avatar
@@ -1443,6 +1442,7 @@ echo "Copy the ARN above and paste it in the WA Review Platform."`;
   wirePalette();
   wireTheme();
   wireTweaks();
+  wireAIChat();
 
   // Auth integration
   App.state = state;
