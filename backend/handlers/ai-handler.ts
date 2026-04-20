@@ -473,12 +473,25 @@ async function handleChat(event: APIGatewayProxyEvent): Promise<APIGatewayProxyR
   const history = (body.history as any[]) || [];
 
   try {
-    const result = await chatWithAI(message, model, history);
+    let result;
+    let usedModel = model;
+    try {
+      result = await chatWithAI(message, model, history);
+    } catch (firstErr) {
+      // Auto-fallback: if selected model fails (throttle/quota), try sonnet-4.6
+      if (model !== 'sonnet-4.6') {
+        console.log(`Model ${model} failed, falling back to sonnet-4.6: ${firstErr instanceof Error ? firstErr.message : firstErr}`);
+        usedModel = 'sonnet-4.6';
+        result = await chatWithAI(message, 'sonnet-4.6', history);
+      } else {
+        throw firstErr;
+      }
+    }
 
     return jsonResponse(200, {
-      response: result.response,
+      response: result.response + (usedModel !== model ? `\n\n_(auto-switched to ${usedModel} due to ${model} rate limit)_` : ''),
       pendingActions: result.pendingActions,
-      model,
+      model: usedModel,
     });
   } catch (err) {
     console.error('AI chat error:', err);
