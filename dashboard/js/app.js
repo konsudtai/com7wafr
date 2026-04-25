@@ -86,11 +86,12 @@ window.App = {};
   }
 
   const routes = {
-    overview:  { group:'monitor', label:'Overview',    render: PAGES.overview,  subtabs:[['overview','Overview'],['findings','Findings'],['compliance','Compliance'],['investigate','Investigate'],['history','History']] },
-    findings:  { group:'monitor', label:'Findings',    render: PAGES.findings,  subtabs:[['overview','Overview'],['findings','Findings'],['compliance','Compliance'],['investigate','Investigate'],['history','History']] },
-    compliance:{ group:'monitor', label:'Compliance',  render: PAGES.compliance,subtabs:[['overview','Overview'],['findings','Findings'],['compliance','Compliance'],['investigate','Investigate'],['history','History']] },
-    investigate:{ group:'monitor', label:'Investigate', render: PAGES.investigate,subtabs:[['overview','Overview'],['findings','Findings'],['compliance','Compliance'],['investigate','Investigate'],['history','History']] },
-    history:   { group:'monitor', label:'History',     render: PAGES.history,   subtabs:[['overview','Overview'],['findings','Findings'],['compliance','Compliance'],['investigate','Investigate'],['history','History']] },
+    overview:  { group:'monitor', label:'Overview',    render: PAGES.overview,  subtabs:[['overview','Overview'],['findings','Findings'],['compliance','Compliance'],['investigate','Investigate'],['monitoring','CloudWatch'],['history','History']] },
+    findings:  { group:'monitor', label:'Findings',    render: PAGES.findings,  subtabs:[['overview','Overview'],['findings','Findings'],['compliance','Compliance'],['investigate','Investigate'],['monitoring','CloudWatch'],['history','History']] },
+    compliance:{ group:'monitor', label:'Compliance',  render: PAGES.compliance,subtabs:[['overview','Overview'],['findings','Findings'],['compliance','Compliance'],['investigate','Investigate'],['monitoring','CloudWatch'],['history','History']] },
+    investigate:{ group:'monitor', label:'Investigate', render: PAGES.investigate,subtabs:[['overview','Overview'],['findings','Findings'],['compliance','Compliance'],['investigate','Investigate'],['monitoring','CloudWatch'],['history','History']] },
+    monitoring:{ group:'monitor', label:'CloudWatch',  render: PAGES.monitoring,subtabs:[['overview','Overview'],['findings','Findings'],['compliance','Compliance'],['investigate','Investigate'],['monitoring','CloudWatch'],['history','History']] },
+    history:   { group:'monitor', label:'History',     render: PAGES.history,   subtabs:[['overview','Overview'],['findings','Findings'],['compliance','Compliance'],['investigate','Investigate'],['monitoring','CloudWatch'],['history','History']] },
     accounts:  { group:'manage',  label:'Accounts',    render: PAGES.accounts,  subtabs:[['accounts','Accounts'],['scan','Scan'],['team','Team']] },
     scan:      { group:'manage',  label:'Scan',        render: PAGES.scan,      subtabs:[['accounts','Accounts'],['scan','Scan'],['team','Team']] },
     team:      { group:'manage',  label:'Team',        render: PAGES.team,      subtabs:[['accounts','Accounts'],['scan','Scan'],['team','Team']] },
@@ -160,6 +161,7 @@ window.App = {};
     wireFinOps();
     wireCompliance();
     wireInvestigate();
+    wireMonitoring();
     wireAccountChips();
 
     // Update avatar
@@ -173,6 +175,119 @@ window.App = {};
       if (avatarName) avatarName.textContent = state.user.split('@')[0];
       if (avatarEmail) avatarEmail.textContent = state.user;
     }
+  }
+
+  // ==================== MONITORING (CloudWatch Dashboards) ====================
+  const CW_STORAGE_KEY = 'wa_cw_dashboards';
+  function getCWDashboards() {
+    try { return JSON.parse(localStorage.getItem(CW_STORAGE_KEY) || '[]'); } catch { return []; }
+  }
+  function saveCWDashboards(list) { localStorage.setItem(CW_STORAGE_KEY, JSON.stringify(list)); }
+
+  function wireMonitoring() {
+    const addBtn = document.getElementById('btn-cw-add');
+    if (!addBtn) return;
+
+    const urlInput = document.getElementById('cw-url');
+    const acctSelect = document.getElementById('cw-acct');
+    const labelInput = document.getElementById('cw-label');
+    const savedList = document.getElementById('cw-saved-list');
+    const embedArea = document.getElementById('cw-embed-area');
+
+    function renderSavedList() {
+      const dashboards = getCWDashboards();
+      if (!dashboards.length) { savedList.innerHTML = ''; return; }
+      savedList.innerHTML = '<div class="t3 mb-8" style="font-size:11px; letter-spacing:.08em; text-transform:uppercase;">Saved Dashboards</div>' +
+        dashboards.map((d, i) => `
+          <div class="flex between center" style="padding:8px 10px; border-radius:var(--r-sm); background:var(--surface); margin-bottom:4px; font-size:13px;">
+            <div style="flex:1; min-width:0;">
+              <div style="font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${d.label || 'Dashboard ' + (i+1)}</div>
+              <div class="t3" style="font-size:11px;">${d.account || 'All'}</div>
+            </div>
+            <div class="flex gap-8">
+              <button class="btn btn--sm btn--ghost cw-view" data-idx="${i}" title="View">View</button>
+              <button class="btn btn--sm btn--ghost cw-del" data-idx="${i}" title="Delete" style="color:var(--s-crit);">×</button>
+            </div>
+          </div>
+        `).join('');
+
+      savedList.querySelectorAll('.cw-view').forEach(btn => {
+        btn.addEventListener('click', () => showDashboard(parseInt(btn.dataset.idx)));
+      });
+      savedList.querySelectorAll('.cw-del').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const list = getCWDashboards();
+          list.splice(parseInt(btn.dataset.idx), 1);
+          saveCWDashboards(list);
+          renderSavedList();
+          if (!list.length) renderEmptyEmbed();
+        });
+      });
+    }
+
+    function renderEmptyEmbed() {
+      embedArea.innerHTML = `
+        <div class="card" style="min-height:500px; display:flex; align-items:center; justify-content:center; color:var(--text-3);">
+          <div style="text-align:center;">
+            <svg width="48" height="48" viewBox="0 0 24 24" style="opacity:.4; margin-bottom:12px;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" fill="currentColor"/><path d="M12 6v6l4 2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <h3 style="font-size:18px; margin-bottom:8px;">No dashboard selected</h3>
+            <p style="font-size:13px;">เพิ่ม CloudWatch Dashboard URL ทางซ้ายมือ<br>แล้วคลิก "Add Dashboard" เพื่อแสดงผล</p>
+          </div>
+        </div>`;
+    }
+
+    function showDashboard(idx) {
+      const dashboards = getCWDashboards();
+      const d = dashboards[idx];
+      if (!d) return;
+      embedArea.innerHTML = `
+        <div class="card card--flush" style="overflow:hidden;">
+          <div style="padding:12px 20px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:500; font-size:15px;">${d.label || 'CloudWatch Dashboard'}</div>
+              <div class="t3" style="font-size:12px;">${d.account || 'All accounts'}</div>
+            </div>
+            <div class="flex gap-8">
+              <a href="${d.url}" target="_blank" rel="noopener" class="btn btn--sm btn--ghost">Open in CloudWatch ↗</a>
+              <button class="btn btn--sm cw-fullscreen">Fullscreen</button>
+            </div>
+          </div>
+          <iframe src="${d.url}" style="width:100%; height:600px; border:0; background:var(--surface);" loading="lazy" title="CloudWatch Dashboard" allow="fullscreen"></iframe>
+        </div>`;
+
+      embedArea.querySelector('.cw-fullscreen')?.addEventListener('click', () => {
+        const iframe = embedArea.querySelector('iframe');
+        if (iframe && iframe.requestFullscreen) iframe.requestFullscreen();
+        else if (iframe && iframe.webkitRequestFullscreen) iframe.webkitRequestFullscreen();
+      });
+    }
+
+    // Add dashboard
+    addBtn.addEventListener('click', () => {
+      const url = (urlInput.value || '').trim();
+      if (!url) { urlInput.style.borderColor = 'var(--s-crit)'; return; }
+      if (!url.startsWith('https://')) { urlInput.style.borderColor = 'var(--s-crit)'; return; }
+      urlInput.style.borderColor = '';
+
+      const dashboards = getCWDashboards();
+      dashboards.push({
+        url: url,
+        account: acctSelect.value || '',
+        accountAlias: acctSelect.options[acctSelect.selectedIndex]?.text || '',
+        label: labelInput.value.trim() || '',
+        addedAt: new Date().toISOString(),
+      });
+      saveCWDashboards(dashboards);
+      urlInput.value = '';
+      labelInput.value = '';
+      renderSavedList();
+      showDashboard(dashboards.length - 1);
+    });
+
+    // Init
+    renderSavedList();
+    const dashboards = getCWDashboards();
+    if (dashboards.length) showDashboard(0);
   }
 
   // ==================== ACCOUNT CHIPS ====================

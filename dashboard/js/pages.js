@@ -852,5 +852,51 @@ window.PAGES = (() => {
     `;
   }
 
-  return { overview, findings, compliance, investigate, history, accounts, scan, team, report, cost };
+  // ==================== MONITORING (CloudWatch Dashboards) ====================
+  function monitoring() {
+    const accts = D.accounts.length ? D.accounts : [{id:'',alias:'No accounts'}];
+
+    return `
+      ${ph({ eyebrow:'Monitor · CloudWatch', title:`Realtime <em>dashboards.</em>`, sub:'Embed CloudWatch public dashboards per account for live monitoring' })}
+      <div class="grid grid-2 mb-24" style="grid-template-columns:320px 1fr;">
+        <div class="card">
+          <h3 class="mb-16">Dashboard Settings</h3>
+          <div style="margin-bottom:12px;">
+            <label class="t3" style="font-size:11px; display:block; margin-bottom:4px;">Account</label>
+            <select id="cw-acct" style="width:100%; padding:8px 12px; border:1px solid var(--line-2); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font-size:13px;">
+              ${accts.map(a => '<option value="' + a.id + '">' + (a.alias||a.id) + (a.id ? ' (' + a.id + ')' : '') + '</option>').join('')}
+            </select>
+          </div>
+          <div style="margin-bottom:12px;">
+            <label class="t3" style="font-size:11px; display:block; margin-bottom:4px;">CloudWatch Dashboard URL</label>
+            <input type="url" id="cw-url" placeholder="https://cloudwatch.amazonaws.com/dashboard.html?dashboard=..." style="width:100%; padding:8px 12px; border:1px solid var(--line-2); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font-size:13px;">
+            <div class="t3 mt-8" style="font-size:11px; line-height:1.5;">
+              ใช้ URL จาก CloudWatch → Dashboards → Share → Public<br>
+              ตัวอย่าง: <code style="font-size:10px; word-break:break-all;">https://cloudwatch.amazonaws.com/dashboard.html?dashboard=MyDash&context=...</code>
+            </div>
+          </div>
+          <div style="margin-bottom:16px;">
+            <label class="t3" style="font-size:11px; display:block; margin-bottom:4px;">Dashboard Label (optional)</label>
+            <input type="text" id="cw-label" placeholder="e.g. Production Metrics" style="width:100%; padding:8px 12px; border:1px solid var(--line-2); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font-size:13px;">
+          </div>
+          <button class="btn btn--accent" id="btn-cw-add" style="width:100%;">Add Dashboard</button>
+
+          <div id="cw-saved-list" class="mt-16"></div>
+        </div>
+        <div>
+          <div id="cw-embed-area">
+            <div class="card" style="min-height:500px; display:flex; align-items:center; justify-content:center; color:var(--text-3);">
+              <div style="text-align:center;">
+                <svg width="48" height="48" viewBox="0 0 24 24" style="opacity:.4; margin-bottom:12px;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" fill="currentColor"/><path d="M12 6v6l4 2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                <h3 style="font-size:18px; margin-bottom:8px;">No dashboard selected</h3>
+                <p style="font-size:13px;">เพิ่ม CloudWatch Dashboard URL ทางซ้ายมือ<br>แล้วคลิก "Add Dashboard" เพื่อแสดงผล</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  return { overview, findings, compliance, investigate, history, accounts, scan, team, report, cost, monitoring };
 })();
