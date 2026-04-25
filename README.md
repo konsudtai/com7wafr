@@ -31,8 +31,10 @@ The script deploys the entire platform in approximately 10 minutes and outputs t
 
 **Destroy (remove all stacks safely):**
 ```bash
-cd com7wafr && chmod +x deploy.sh && ./deploy.sh --destroy
+cd com7wafr && chmod +x deploy.sh && ./deploy.sh --destroy --region us-east-1
 ```
+
+> **Important:** You must specify `--region` matching the region where you deployed. If you forget, the script will auto-detect and suggest the correct region.
 
 > The destroy command removes only the WA Review platform stacks (wa-review-auth, wa-review-data, wa-review-api, wa-review-frontend). It does NOT affect any other workloads, services, or resources in the AWS account. Target accounts' IAM roles (WAReviewReadOnly) are not deleted — remove them manually if no longer needed.
 
@@ -530,6 +532,7 @@ sequenceDiagram
 - Real-time scan with progress bar
 - Overview with radar chart, severity distribution, heatmap
 - Filterable findings table with detail modal
+- CloudWatch realtime monitoring dashboards (iframe embed per account)
 - Scan history with trend charts
 - Account management with auto-generated IAM setup scripts
 - Team management (Admin/Viewer roles)
@@ -565,6 +568,7 @@ sequenceDiagram
 | Findings | Filterable table (5 filters + search), detail drawer with resource, description, recommendation | All |
 | Compliance | 7 frameworks (WAFS, CIS, NIST, SOC2, FTR, SPIP, SSB), click to expand Category → Rule ID detail (Service Screener style) | All |
 | Investigate | CloudTrail event investigation — query by account, region, time range, username, event name. Auto-flags suspicious activity | Admin |
+| CloudWatch | Embed CloudWatch public dashboards per account via iframe, save/manage multiple dashboards, fullscreen mode | All |
 | History | Scan history table with status | All |
 | Accounts | Account CRUD, 4-step wizard (Account Info → CloudShell Script → ARN → Verify & Save) | Admin: write, Viewer: read |
 | Scan | Select accounts/regions/services with AWS icons, real-time progress bar | Admin only |
@@ -979,8 +983,8 @@ pytest -k "roundtrip or invariant or correctness"
 │       ├── auth.js          # Cognito auth (login, token refresh, logout)
 │       ├── api.js           # API client with JWT
 │       ├── data.js          # Data layer (loads from API, derives pillars/frameworks)
-│       ├── pages.js         # All 9 pages (overview, findings, compliance, etc.)
-│       └── app.js           # Router, nav, avatar menu, page wiring, PDF gen
+│       ├── pages.js         # All 11 pages (overview, findings, compliance, monitoring, etc.)
+│       └── app.js           # Router, nav, avatar menu, page wiring, PDF gen, CloudWatch embed
 │
 ├── backend/                 # Lambda handlers (TypeScript)
 │   ├── auth/auth-module.ts  # Role extraction, authorization
@@ -1039,11 +1043,13 @@ The destroy command removes **only** WA Review platform resources. It does NOT t
 
 ```bash
 # Remove all WA Review stacks
-./deploy.sh --destroy
+./deploy.sh --destroy --region us-east-1
 
 # Or with specific profile/region
 ./deploy.sh --destroy --profile production --region ap-southeast-1
 ```
+
+> **Note:** Always specify `--region` matching where you deployed. If omitted, the script will check common regions and tell you where stacks were found.
 
 ### What Gets Deleted
 
@@ -1085,6 +1091,10 @@ aws iam delete-role --role-name WAReviewReadOnly
 | Cross-account assume role fails | Verify the IAM role exists in target account and trust policy includes platform account |
 | PDF export blank | Ensure html2pdf.js CDN is accessible; check browser console for errors |
 | Dark mode not persisting | Clear localStorage: `localStorage.removeItem('wa-theme')` |
+| `--destroy` does nothing | Specify `--region` matching where you deployed: `./deploy.sh --destroy --region us-east-1` |
+| CloudFront OAC/SecurityHeaders "AlreadyExists" | Orphaned resources from a previous failed deploy. The template now uses unique names to avoid this. If it persists, delete the orphaned OAC/policy manually in CloudFront console |
+| CloudWatch iframe not loading | Ensure the CloudWatch dashboard is shared as **Public**. Go to CloudWatch → Dashboards → Share dashboard → Public |
+| Login fails (FORCE_CHANGE_PASSWORD) | Reset password via CLI: `aws cognito-idp admin-set-user-password --user-pool-id POOL_ID --username EMAIL --password "NewPass@123" --permanent --region REGION` |
 
 ### Useful Commands
 
@@ -1101,8 +1111,11 @@ aws logs tail /aws/lambda/wa-review-scan-handler --follow
 # Re-deploy dashboard only
 aws s3 sync dashboard/ s3://$(grep S3_BUCKET deployment-outputs.txt | cut -d= -f2) --exclude "node_modules/*" --delete
 
-# Destroy everything
-./deploy.sh --destroy
+# Destroy everything (specify region!)
+./deploy.sh --destroy --region us-east-1
+
+# Reset admin password
+aws cognito-idp admin-set-user-password --user-pool-id POOL_ID --username admin@company.com --password "NewPass@2026!" --permanent --region us-east-1
 ```
 
 ---
