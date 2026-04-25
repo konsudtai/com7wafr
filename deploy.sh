@@ -53,6 +53,28 @@ if [ "$DESTROY" = true ]; then
   [ -z "$REGION" ] && REGION="ap-southeast-1"
   export AWS_DEFAULT_REGION="$REGION"
 
+  info "Target region: $REGION | Account: $ACCOUNT_ID"
+
+  # Check if stacks exist in this region
+  STACK_COUNT=$(aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE UPDATE_ROLLBACK_COMPLETE $PROF_ARG --query "length(StackSummaries[?contains(StackName,'wa-review')])" --output text 2>/dev/null || echo "0")
+  if [ "$STACK_COUNT" = "0" ] || [ -z "$STACK_COUNT" ]; then
+    warn "No wa-review stacks found in $REGION"
+    info "If you deployed to a different region, use: ./deploy.sh --destroy --region <region>"
+    info "Checking other common regions..."
+    for CHECK_REGION in us-east-1 ap-southeast-1 us-west-2 eu-west-1 ap-northeast-1; do
+      if [ "$CHECK_REGION" = "$REGION" ]; then continue; fi
+      CHECK_COUNT=$(aws cloudformation list-stacks --region "$CHECK_REGION" --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE UPDATE_ROLLBACK_COMPLETE $PROF_ARG --query "length(StackSummaries[?contains(StackName,'wa-review')])" --output text 2>/dev/null || echo "0")
+      if [ "$CHECK_COUNT" != "0" ] && [ -n "$CHECK_COUNT" ]; then
+        info "Found wa-review stacks in $CHECK_REGION — run: ./deploy.sh --destroy --region $CHECK_REGION"
+      fi
+    done
+    echo ""
+    exit 0
+  fi
+
+  info "Found $STACK_COUNT wa-review stack(s) in $REGION — starting cleanup..."
+  echo ""
+
   # Empty S3 frontend bucket before deleting stack
   BUCKET_NAME=$(aws cloudformation describe-stacks --stack-name wa-review-frontend $PROF_ARG --query "Stacks[0].Outputs[?OutputKey=='BucketName'].OutputValue" --output text 2>/dev/null || true)
   if [ -n "$BUCKET_NAME" ] && [ "$BUCKET_NAME" != "None" ]; then
